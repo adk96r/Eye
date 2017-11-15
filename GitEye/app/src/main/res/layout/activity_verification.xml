@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_verification"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/v_gradient_background"
+    android:padding="0dp"
+    tools:context="adk.giteye.Verification">
+
+
+    <SurfaceView
+        android:id="@+id/VerifySurfaceView"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="0dp"
+        android:background="#00ffffff" />
+
+    <RelativeLayout
+        android:id="@+id/VerifyFaceView"
+        android:layout_width="500dp"
+        android:layout_height="500dp"
+        android:layout_centerHorizontal="true"
+        android:visibility="visible">
+
+    </RelativeLayout>
+
+    <Button
+        android:id="@+id/VerifyBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:layout_margin="8dp"
+        android:background="@drawable/v_button_black"
+        android:fontFamily="sans-serif-smallcaps"
+        android:padding="10dp"
+        android:text="  START  "
+        android:textColor="#fff"
+        android:textSize="30sp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentStart="true"
+        android:fontFamily="monospace"
+        android:gravity="bottom"
+        android:padding="8dp"
+        android:text="Git-Eye v1.0 "
+        android:textColor="#fff"
+        android:textSize="12sp" />
+</RelativeLayout>
