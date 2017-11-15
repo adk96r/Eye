@@ -1,9 +1,8 @@
 package adk.giteye;
 
 import android.animation.Animator;
-import android.graphics.Camera;
 import android.graphics.Color;
-import android.graphics.Paint;
+import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
@@ -15,6 +14,7 @@ import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,7 +28,7 @@ import java.util.Map;
 
 public class HomeActivity extends AppCompatActivity {
 
-    int maxX, maxY;
+    int screenMaxX, screenMaxY;
     float scaleX, scaleY;
     boolean firstStart = true;
     boolean recognizing = false;
@@ -58,10 +58,11 @@ public class HomeActivity extends AppCompatActivity {
         cameraX = new CameraX(this, "BackCamera", CameraX.CAMERA_BACK);
         cameraX.debugOn(true);
 
-        // Set the output surfaces for the camera.
+        // Set the output surfaces for the camera & compute the scales.
         List<Object> outputSurfaces = new ArrayList<>(1);
         outputSurfaces.add(mSurfaceView);
         cameraX.setOutputSurfaces(outputSurfaces);
+        setScale();
 
         // Set face detection preference for capture requests.
         Map<CaptureRequest.Key, Integer> options = new HashMap<>();
@@ -71,8 +72,19 @@ public class HomeActivity extends AppCompatActivity {
         // Only show the hints.
         introHintView.setVisibility(View.VISIBLE);
 
-        // Tapping the play FAB
+        // Tapping the play FAB.
         startPreviewFAB.setOnClickListener(getPreviewFABListener());
+
+        // Calculate the screen dimensions and set the scales.
+        getWindow().getDecorView().post(new Runnable() {
+            @Override
+            public void run() {
+                screenMaxX = getWindow().getDecorView().getWidth();
+                screenMaxY = getWindow().getDecorView().getHeight();
+                Log.d("Checks", "Screen size is " + screenMaxX + " x" + screenMaxY);
+                setScale();
+            }
+        });
 
     }
 
@@ -176,6 +188,7 @@ public class HomeActivity extends AppCompatActivity {
                 for (int i = 0; i < allFaces.length; i++) {
 
                     showFace(allFaces[i].getBounds(), result, i);
+                    Log.d("Checks", String.valueOf(allFaces[i].getBounds()));
 
                     // Send the face to the Server for recognition.
                     // **Only if the face is new, to prevent
@@ -188,6 +201,22 @@ public class HomeActivity extends AppCompatActivity {
 
     }
 
+
+    // Calculate the scales to ensure proper placement of borders enclosing the recognized faces.
+    private void setScale() {
+
+        if (cameraX == null) {
+            scaleX = scaleY = 1;
+            return;
+        }
+        Size imageSize = cameraX.getMaxOutputSize(ImageFormat.JPEG);
+
+        scaleX = screenMaxX / imageSize.getWidth();
+        scaleY = screenMaxY / imageSize.getHeight();
+
+        Log.d("Checks", "X :: " + scaleX + "    Y :: " + scaleY);
+    }
+
     // Draws the outline of the face ( box enclosing the face )
     private void showFace(final Rect bounds, TotalCaptureResult result, int index) {
 
@@ -195,8 +224,6 @@ public class HomeActivity extends AppCompatActivity {
         int top, left, bottom, right, centerX, centerY, lineThickness;
 
         lineThickness = 8;
-        scaleY = 1;
-        scaleX = 1;
 
         top = (int) (bounds.top * scaleY);
         left = (int) (bounds.left * scaleX);
