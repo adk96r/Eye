@@ -13,7 +13,6 @@ import android.hardware.camera2.params.Face;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
@@ -101,20 +100,27 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
+                // FAB tapped. So change recongition status.
+                recognizing = !recognizing;
+
                 Animator.AnimatorListener listener = new Animator.AnimatorListener() {
                     @Override
                     public void onAnimationStart(Animator animation) {
 
+                        try {
+                            // Fade out the hints
+                            introHintView.animate()
+                                    .alpha(recognizing ? 0.0f : 1.0f)
+                                    .setDuration(400)
+                                    .start();
+
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
                     }
 
                     @Override
                     public void onAnimationEnd(Animator animation) {
-
-                        // Hide the intro hint view.
-                        introHintView.animate()
-                                .alpha(recognizing ? 0.0f : 1.0f)
-                                .setDuration(200)
-                                .start();
 
                         // Start the feed.
                         try {
@@ -127,7 +133,7 @@ public class HomeActivity extends AppCompatActivity {
                                 else
                                     cameraX.pauseLivePreview();
                             }
-                        } catch (CameraAccessException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
@@ -144,34 +150,27 @@ public class HomeActivity extends AppCompatActivity {
                 };
 
                 if (recognizing) {
-                    // Preview is On. So pause the preview.
-                    startPreviewFAB.setBackground(getDrawable(R.drawable.ic_play_arrow_black_24dp));
-                    recognizing = false;
+                    // User started the preview.
+                    startPreviewFAB.setImageDrawable(getDrawable(R.drawable.ic_pause_black_24dp));
 
                 } else {
-                    // Preview is paused. So resume the preview.
-                    startPreviewFAB.setBackground(getDrawable(R.drawable.ic_pause_black_24dp));
-                    recognizing = true;
+                    // User paused the preview.
+                    startPreviewFAB.setImageDrawable(getDrawable(R.drawable.ic_play_arrow_black_24dp));
                 }
 
-                pushFAB(listener);
+                float screenWidth = (getWindow().getDecorView().getWidth()) / 2;
+                float fabWidth = startPreviewFAB.getWidth();
+
+                startPreviewFAB.animate()
+                        .scaleX(recognizing ? 1 : 4)
+                        .scaleY(recognizing ? 1 : 4)
+                        .translationXBy(recognizing ? -(screenWidth - fabWidth) : (screenWidth - fabWidth))
+                        .setDuration(400)
+                        .setListener(listener)
+                        .start();
+
             }
         };
-    }
-
-    // Push FAB to the left side and scale it down 4 times
-    private void pushFAB(Animator.AnimatorListener listener) {
-
-        float screenWidth = (getWindow().getDecorView().getWidth()) / 2;
-        float fabWidth = startPreviewFAB.getWidth();
-
-        startPreviewFAB.animate()
-                .scaleX(recognizing ? 1 : 4)
-                .scaleY(recognizing ? 1 : 4)
-                .translationXBy(recognizing ? -(screenWidth - fabWidth) : (screenWidth - fabWidth))
-                .setDuration(400)
-                .setListener(listener)
-                .start();
     }
 
     // Callback extracts the face data from the camera feed and performs the
