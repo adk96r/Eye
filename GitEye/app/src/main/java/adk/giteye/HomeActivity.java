@@ -62,7 +62,6 @@ public class HomeActivity extends AppCompatActivity {
         List<Object> outputSurfaces = new ArrayList<>(1);
         outputSurfaces.add(mSurfaceView);
         cameraX.setOutputSurfaces(outputSurfaces);
-        setScale();
 
         // Set face detection preference for capture requests.
         Map<CaptureRequest.Key, Integer> options = new HashMap<>();
@@ -76,13 +75,21 @@ public class HomeActivity extends AppCompatActivity {
         startPreviewFAB.setOnClickListener(getPreviewFABListener());
 
         // Calculate the screen dimensions and set the scales.
-        getWindow().getDecorView().post(new Runnable() {
+        mSurfaceView.post(new Runnable() {
             @Override
             public void run() {
-                screenMaxX = getWindow().getDecorView().getWidth();
-                screenMaxY = getWindow().getDecorView().getHeight();
-                Log.d("Checks", "Screen size is " + screenMaxX + " x" + screenMaxY);
-                setScale();
+                screenMaxX = mSurfaceView.getWidth();
+                screenMaxY = mSurfaceView.getHeight();
+
+                if (cameraX == null) {
+                    scaleX = scaleY = 1;
+                    return;
+                }
+
+                Size imageSize = cameraX.getMaxOutputSize(ImageFormat.JPEG);
+
+                scaleX = screenMaxX / (float) imageSize.getWidth();
+                scaleY = screenMaxY / (float) imageSize.getHeight();
             }
         });
 
@@ -157,7 +164,6 @@ public class HomeActivity extends AppCompatActivity {
 
         float screenWidth = (getWindow().getDecorView().getWidth()) / 2;
         float fabWidth = startPreviewFAB.getWidth();
-        Log.d("Checks", String.valueOf(recognizing));
 
         startPreviewFAB.animate()
                 .scaleX(recognizing ? 1 : 4)
@@ -179,6 +185,7 @@ public class HomeActivity extends AppCompatActivity {
                 super.onCaptureCompleted(session, request, result);
 
                 // Remove the old face borders
+
                 mFaceOverlays.removeAllViews();
 
                 // Get the new face borders
@@ -188,7 +195,6 @@ public class HomeActivity extends AppCompatActivity {
                 for (int i = 0; i < allFaces.length; i++) {
 
                     showFace(allFaces[i].getBounds(), result, i);
-                    Log.d("Checks", String.valueOf(allFaces[i].getBounds()));
 
                     // Send the face to the Server for recognition.
                     // **Only if the face is new, to prevent
@@ -201,29 +207,13 @@ public class HomeActivity extends AppCompatActivity {
 
     }
 
-
-    // Calculate the scales to ensure proper placement of borders enclosing the recognized faces.
-    private void setScale() {
-
-        if (cameraX == null) {
-            scaleX = scaleY = 1;
-            return;
-        }
-        Size imageSize = cameraX.getMaxOutputSize(ImageFormat.JPEG);
-
-        scaleX = screenMaxX / imageSize.getWidth();
-        scaleY = screenMaxY / imageSize.getHeight();
-
-        Log.d("Checks", "X :: " + scaleX + "    Y :: " + scaleY);
-    }
-
     // Draws the outline of the face ( box enclosing the face )
     private void showFace(final Rect bounds, TotalCaptureResult result, int index) {
 
         float transparency = 1.0f;
         int top, left, bottom, right, centerX, centerY, lineThickness;
 
-        lineThickness = 8;
+        lineThickness = 4;
 
         top = (int) (bounds.top * scaleY);
         left = (int) (bounds.left * scaleX);
@@ -259,11 +249,11 @@ public class HomeActivity extends AppCompatActivity {
     private int getFaceColor(int index) {
         switch (index) {
             case 0:
-                return Color.YELLOW;
+                return Color.CYAN;
             case 1:
                 return Color.BLUE;
             case 2:
-                return Color.CYAN;
+                return Color.YELLOW;
             case 3:
                 return Color.MAGENTA;
             case 4:
