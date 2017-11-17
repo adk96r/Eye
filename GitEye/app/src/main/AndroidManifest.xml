@@ -26,11 +26,6 @@
         </activity>
 
         <activity
-            android:name=".Verification"
-            android:screenOrientation="userLandscape"
-            android:theme="@style/FullscreenTheme"></activity>
-
-        <activity
             android:name=".Auth"
             android:theme="@style/AppTheme">
 

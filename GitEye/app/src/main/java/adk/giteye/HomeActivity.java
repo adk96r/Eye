@@ -13,6 +13,7 @@ import android.hardware.camera2.params.Face;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
@@ -27,15 +28,32 @@ import java.util.Map;
 
 public class HomeActivity extends AppCompatActivity {
 
+    boolean debugMode = true;
+    String debugTag = "EYE_DEBUG";
+
     int screenMaxX, screenMaxY;
     float scaleX, scaleY;
-    boolean firstStart = true;
-    boolean recognizing = false;
+    boolean firstStart = true;      // Initial camera start
+    boolean recognizing = false;    // Camera preview status
     View introHintView = null;
+    boolean firstFace = true;
+    int currentFaceColor = 0;
+    /**
+     * Callback extracts the faces from the camera preview results
+     * and tracks them.
+     * <p>
+     * For every face, query the backend to get its details.
+     * Show these details as overlays.
+     *
+     * @return captureCallback
+     */
+
+    String message = "";
+    private CameraX cameraX;        // Camera
     private SurfaceView mSurfaceView;
     private RelativeLayout mFaceOverlays;
     private FloatingActionButton startPreviewFAB;
-    private CameraX cameraX;
+    private List<Person> peopleBeingTracked;   // Persons being tracked in the feed
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,9 +110,20 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
+        // Initially no people are tracked.
+        peopleBeingTracked = new ArrayList<>();
+
     }
 
-    // Handles the click event for startPreviewFAB
+    /**
+     * Listens to the click events of FAB and either starts/pauses/resumes
+     * the camera preview.
+     * <p>
+     * Also fades out the hint overlay and shrinks and moves aside the FAB
+     * upon starting the preview; expands and centres upon pausing.
+     *
+     * @return onClickListener
+     */
     private FloatingActionButton.OnClickListener getPreviewFABListener() {
         return new View.OnClickListener() {
             @Override
@@ -173,44 +202,152 @@ public class HomeActivity extends AppCompatActivity {
         };
     }
 
-    // Callback extracts the face data from the camera feed and performs the
-    // recognition and also shows the details as overlays.
     private CameraCaptureSession.CaptureCallback getFaceDetectionCallback() {
 
         CameraCaptureSession.CaptureCallback callback = new CameraCaptureSession.CaptureCallback() {
 
             @Override
-            public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+            public void onCaptureCompleted(CameraCaptureSession session,
+                                           CaptureRequest request, TotalCaptureResult result) {
+
                 super.onCaptureCompleted(session, request, result);
 
-                // Remove the old face borders
+                int id;
+                Person p;
 
+                // Remove the old face borders.
                 mFaceOverlays.removeAllViews();
+
+                // Un-track everyone temporarily.
+                for (Person person : peopleBeingTracked) {
+                    person.setBeingTracked(false);
+                }
 
                 // Get the new face borders
                 Face allFaces[] = result.get(CaptureResult.STATISTICS_FACES);
 
-                // Draw the outlines for each one of them.
-                for (int i = 0; i < allFaces.length; i++) {
+                // Check if the detected faces have also been detected in the previous frame by
+                // associating previous frames with current frames and forming similar pairs.
+                for (Face face : allFaces) {
 
-                    showFace(allFaces[i].getBounds(), result, i);
+                    id = beingTracked(face.getBounds());
 
-                    // Send the face to the Server for recognition.
-                    // **Only if the face is new, to prevent
+                    if (id != -1) {
 
+                        // Being tracked in both the previous frame and current frame. Continue
+                        // tracking it with the slightly shifted bounds and also draw the border
+                        // around the person's face.
+                        
+                        p = peopleBeingTracked.get(id);
+                        p.setBeingTracked(true);
+                        p.updateBounds(face.getBounds());
+                        drawFace(p, peopleBeingTracked.get(id).getFaceBorderColor());
+
+                    } else {
+
+                        // Either a new face (or) Face has displaced proportionaly between
+                        // the two frames. So create a new Person, and query it.
+
+                        // Do it Async-ly
+
+                        p = new Person("Aditya" + currentFaceColor, face.getBounds());
+                        currentFaceColor = (currentFaceColor + 1) % 8;
+                        p.setFaceBorderColor(currentFaceColor);
+
+                        // Add the new person to the list of people being tracked.
+                        peopleBeingTracked.add(p);
+
+                    }
                 }
+
+                // Remove the persons who aren't being tracked.
+                List<Person> untrackedPeople = new ArrayList<>();
+
+                for (Person person : peopleBeingTracked) {
+                    if (!person.isBeingTracked())
+                        untrackedPeople.add(person);
+                }
+
+                for (Person person : untrackedPeople) {
+                    peopleBeingTracked.remove(person);
+                }
+
+                untrackedPeople = null;
             }
         };
 
         return callback;
-
     }
 
-    // Draws the outline of the face ( box enclosing the face )
-    private void showFace(final Rect bounds, TotalCaptureResult result, int index) {
+    /**
+     * Compare the @faceBounds with face bounds being
+     * tracked to check how far they are from each other.
+     * If really close ( < threshold ) return who's face
+     * it could be ( ID of the Person in peopleBeingTracked
+     * List ). If large then the face could be a new one. So
+     * return -1.
+     *
+     * @param faceBounds to be compared.
+     * @return the ID of the person in array of people being tracked currently.
+     */
+    private int beingTracked(Rect faceBounds) {
+
+        int id = -1;
+        double deviation;
+        double threshold = 45;
+
+        for (int i = 0; i < peopleBeingTracked.size(); i++) {
+
+            deviation = getSimilarity(peopleBeingTracked.get(i).getBounds(), faceBounds);
+            if (deviation < threshold) {
+                id = i;
+                break;
+            }
+        }
+
+        return id;
+    }
+
+    /**
+     * Returns the euclidean distance beween the centres of the two face borders; smaller distances
+     * would infer that the face has shifted slightly across the frames. Larger distance could mean
+     * a different face.
+     *
+     * @param oldFaceBounds
+     * @param newFaceBounds
+     * @return similarity
+     */
+    private double getSimilarity(Rect oldFaceBounds, Rect newFaceBounds) {
+
+        double euclideanDistance = 0.0f;
+        float cx1, cy1;
+        float cx2, cy2;
+
+        cx1 = (float) oldFaceBounds.left + ((float) oldFaceBounds.width() / 2);
+        cy1 = (float) oldFaceBounds.top + ((float) oldFaceBounds.height() / 2);
+
+        cx2 = (float) newFaceBounds.left + ((float) newFaceBounds.width() / 2);
+        cy2 = (float) newFaceBounds.top + ((float) newFaceBounds.height() / 2);
+
+        euclideanDistance = Math.hypot((cx2 - cx1), (cy2 - cy1));
+        // Log.d("Checkss", "Centre P (" + cx1 + ", " + cy1 + ")  Center Q (" + cx2 + ", " + cy2
+        // + ")  Hypot = " + euclideanDistance);
+        // 40 ~ 50 is the sweet range for a good similarity threshold.
+        return euclideanDistance;
+    }
+
+    /**
+     * Draw the outline of any face of the person. Draw the outline as 4
+     * lines (views) top, right, bottom and left edges.
+     *
+     * @param person     whose face will be drawn.
+     * @param colorIndex of the face. ( for choosing a different color for each face )
+     */
+    private void drawFace(Person person, int colorIndex) {
 
         float transparency = 1.0f;
-        int top, left, bottom, right, centerX, centerY, lineThickness;
+        Rect bounds = person.getBounds();
+        int top, left, bottom, right, lineThickness;
 
         lineThickness = 4;
 
@@ -220,15 +357,27 @@ public class HomeActivity extends AppCompatActivity {
         bottom = (int) (bounds.bottom * scaleY);
 
         try {
-            mFaceOverlays.addView(setDimensions(top, left, right - left, lineThickness, transparency, index));    // Top Border
-            mFaceOverlays.addView(setDimensions(top, left, lineThickness, bottom - top, transparency, index));    // Left Border
-            mFaceOverlays.addView(setDimensions(top, right, lineThickness, right - left, transparency, index));    // Right Border
-            mFaceOverlays.addView(setDimensions(bottom, left, right - left, lineThickness, transparency, index));    // Bottom Border
+            mFaceOverlays.addView(setDimensions(top, left, right - left, lineThickness, transparency, colorIndex));    // Top Border
+            mFaceOverlays.addView(setDimensions(top, left, lineThickness, bottom - top, transparency, colorIndex));    // Left Border
+            mFaceOverlays.addView(setDimensions(top, right, lineThickness, right - left, transparency, colorIndex));    // Right Border
+            mFaceOverlays.addView(setDimensions(bottom, left, right - left, lineThickness, transparency, colorIndex));    // Bottom Border
         } catch (Exception e) {
         }
+
     }
 
-    // Helper function for showFace(Rect, TotalCapture)
+    /**
+     * Create a view object which is a simple line from (top, left) to (right, bottom).
+     * Useful while drawing the edges of the face border in drawFace(Person, int).
+     *
+     * @param top    coordinate
+     * @param left   coordinate
+     * @param width  of the line
+     * @param height of the line
+     * @param alpha  of the line (!00%)
+     * @param index  of color of the line.
+     * @return View ( a line )
+     */
     View setDimensions(int top, int left, int width, int height, float alpha, int index) {
 
         View v = new View(getApplicationContext());
@@ -236,15 +385,17 @@ public class HomeActivity extends AppCompatActivity {
         v.setX(left);
         v.setY(top);
         v.setLayoutParams(lp);
-
-        // Different colors for different faces.
-        v.setBackgroundColor(getFaceColor(index));
-
         v.setAlpha(alpha);
+        v.setBackgroundColor(getFaceColor(index));
         return v;
     }
 
-    // Helper for getting different face colors
+    /**
+     * Return one of the 7 available colors.
+     *
+     * @param index of the color.
+     * @return color code.
+     */
     private int getFaceColor(int index) {
         switch (index) {
             case 0:
