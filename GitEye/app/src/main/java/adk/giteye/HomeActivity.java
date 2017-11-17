@@ -11,9 +11,9 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.Face;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
@@ -28,27 +28,13 @@ import java.util.Map;
 
 public class HomeActivity extends AppCompatActivity {
 
-    boolean debugMode = true;
-    String debugTag = "EYE_DEBUG";
-
     int screenMaxX, screenMaxY;
     float scaleX, scaleY;
     boolean firstStart = true;      // Initial camera start
     boolean recognizing = false;    // Camera preview status
     View introHintView = null;
-    boolean firstFace = true;
     int currentFaceColor = 0;
-    /**
-     * Callback extracts the faces from the camera preview results
-     * and tracks them.
-     * <p>
-     * For every face, query the backend to get its details.
-     * Show these details as overlays.
-     *
-     * @return captureCallback
-     */
 
-    String message = "";
     private CameraX cameraX;        // Camera
     private SurfaceView mSurfaceView;
     private RelativeLayout mFaceOverlays;
@@ -60,11 +46,11 @@ public class HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         setContentView(R.layout.activity_home);
-        try {
-            getSupportActionBar().hide();
-        } catch (Exception e) {
+        android.support.v7.app.ActionBar supportActionBar =
+                getSupportActionBar();
+        if (supportActionBar != null)
+            supportActionBar.hide();
 
-        }
 
         // Initally the recognition is off.
         recognizing = false;
@@ -204,11 +190,11 @@ public class HomeActivity extends AppCompatActivity {
 
     private CameraCaptureSession.CaptureCallback getFaceDetectionCallback() {
 
-        CameraCaptureSession.CaptureCallback callback = new CameraCaptureSession.CaptureCallback() {
+        return new CameraCaptureSession.CaptureCallback() {
 
             @Override
-            public void onCaptureCompleted(CameraCaptureSession session,
-                                           CaptureRequest request, TotalCaptureResult result) {
+            public void onCaptureCompleted(@NonNull CameraCaptureSession session,
+                                           @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
 
                 super.onCaptureCompleted(session, request, result);
 
@@ -226,37 +212,39 @@ public class HomeActivity extends AppCompatActivity {
                 // Get the new face borders
                 Face allFaces[] = result.get(CaptureResult.STATISTICS_FACES);
 
-                // Check if the detected faces have also been detected in the previous frame by
-                // associating previous frames with current frames and forming similar pairs.
-                for (Face face : allFaces) {
+                if (allFaces != null) {
+                    // Check if the detected faces have also been detected in the previous frame by
+                    // associating previous frames with current frames and forming similar pairs.
+                    for (Face face : allFaces) {
 
-                    id = beingTracked(face.getBounds());
+                        id = beingTracked(face.getBounds());
 
-                    if (id != -1) {
+                        if (id != -1) {
 
-                        // Being tracked in both the previous frame and current frame. Continue
-                        // tracking it with the slightly shifted bounds and also draw the border
-                        // around the person's face.
-                        
-                        p = peopleBeingTracked.get(id);
-                        p.setBeingTracked(true);
-                        p.updateBounds(face.getBounds());
-                        drawFace(p, peopleBeingTracked.get(id).getFaceBorderColor());
+                            // Being tracked in both the previous frame and current frame. Continue
+                            // tracking it with the slightly shifted bounds and also draw the border
+                            // around the person's face.
 
-                    } else {
+                            p = peopleBeingTracked.get(id);
+                            p.setBeingTracked(true);
+                            p.updateBounds(face.getBounds());
+                            drawFace(p, peopleBeingTracked.get(id).getFaceBorderColor());
 
-                        // Either a new face (or) Face has displaced proportionaly between
-                        // the two frames. So create a new Person, and query it.
+                        } else {
 
-                        // Do it Async-ly
+                            // Either a new face (or) Face has displaced proportionaly between
+                            // the two frames. So create a new Person, and query it.
 
-                        p = new Person("Aditya" + currentFaceColor, face.getBounds());
-                        currentFaceColor = (currentFaceColor + 1) % 8;
-                        p.setFaceBorderColor(currentFaceColor);
+                            // Do it Async-ly
 
-                        // Add the new person to the list of people being tracked.
-                        peopleBeingTracked.add(p);
+                            p = new Person("Aditya" + currentFaceColor, face.getBounds());
+                            currentFaceColor = (currentFaceColor + 1) % 8;
+                            p.setFaceBorderColor(currentFaceColor);
 
+                            // Add the new person to the list of people being tracked.
+                            peopleBeingTracked.add(p);
+
+                        }
                     }
                 }
 
@@ -276,7 +264,6 @@ public class HomeActivity extends AppCompatActivity {
             }
         };
 
-        return callback;
     }
 
     /**
@@ -313,13 +300,13 @@ public class HomeActivity extends AppCompatActivity {
      * would infer that the face has shifted slightly across the frames. Larger distance could mean
      * a different face.
      *
-     * @param oldFaceBounds
-     * @param newFaceBounds
+     * @param oldFaceBounds Face border in the previous preview frame.
+     * @param newFaceBounds Face border in the current preview frame.
      * @return similarity
      */
     private double getSimilarity(Rect oldFaceBounds, Rect newFaceBounds) {
 
-        double euclideanDistance = 0.0f;
+        double euclideanDistance;
         float cx1, cy1;
         float cx2, cy2;
 
@@ -362,6 +349,7 @@ public class HomeActivity extends AppCompatActivity {
             mFaceOverlays.addView(setDimensions(top, right, lineThickness, right - left, transparency, colorIndex));    // Right Border
             mFaceOverlays.addView(setDimensions(bottom, left, right - left, lineThickness, transparency, colorIndex));    // Bottom Border
         } catch (Exception e) {
+            // Problem while creating the face border.
         }
 
     }
