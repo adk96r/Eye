@@ -16,6 +16,21 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/startPreviewBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|center"
+        android:layout_margin="16dp"
+        android:background="#ffdddd"
+        android:scaleType="center"
+        android:scaleX="3"
+        android:scaleY="3"
+        android:src="@drawable/ic_play_arrow_black_24dp"
+        app:backgroundTint="#ffffff"
+        app:fabSize="normal" />
+
     <RelativeLayout
         android:id="@+id/introHint"
         android:layout_width="match_parent"
@@ -50,20 +65,6 @@
 
         </LinearLayout>
     </RelativeLayout>
-
-    <android.support.design.widget.FloatingActionButton
-        android:id="@+id/startPreviewBtn"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center|center"
-        android:layout_margin="16dp"
-        android:background="#ffdddd"
-        android:scaleType="center"
-        android:scaleX="3"
-        android:scaleY="3"
-        android:src="@drawable/ic_play_arrow_black_24dp"
-        app:backgroundTint="#ffffff"
-        app:fabSize="normal" />
 
 
 </FrameLayout>
