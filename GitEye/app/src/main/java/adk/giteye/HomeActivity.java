@@ -281,7 +281,7 @@ public class HomeActivity extends AppCompatActivity {
 
         int id = -1;
         double deviation;
-        double threshold = 45;
+        double threshold = 50;
 
         for (int i = 0; i < peopleBeingTracked.size(); i++) {
 
