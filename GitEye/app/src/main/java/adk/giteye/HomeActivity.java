@@ -34,6 +34,7 @@ public class HomeActivity extends AppCompatActivity {
     boolean recognizing = false;    // Camera preview status
     View introHintView = null;
     int currentFaceColor = 0;
+    double threshold = 50;          // Max Euclidean Distance for similar faces
 
     private CameraX cameraX;        // Camera
     private SurfaceView mSurfaceView;
@@ -281,7 +282,6 @@ public class HomeActivity extends AppCompatActivity {
 
         int id = -1;
         double deviation;
-        double threshold = 50;
 
         for (int i = 0; i < peopleBeingTracked.size(); i++) {
 
