@@ -180,7 +180,7 @@ public class HomeActivity extends AppCompatActivity {
                 startPreviewFAB.animate()
                         .scaleX(recognizing ? 1 : 3)
                         .scaleY(recognizing ? 1 : 3)
-                        .translationXBy(recognizing ? -(screenWidth - fabWidth) : (screenWidth - fabWidth))
+                        .translationXBy(recognizing ? (screenWidth - fabWidth*3/4) : -(screenWidth - fabWidth*3/4))
                         .setDuration(400)
                         .setListener(listener)
                         .start();

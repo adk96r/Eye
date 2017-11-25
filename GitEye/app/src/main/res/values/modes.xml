@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="modes">
+        <item>Low</item>
+        <item>Mid</item>
+        <item>High</item>
+    </array>
+
+    <array name="colors">
+        <item>@color/lowColor</item>
+        <item>@color/midColor</item>
+        <item>@color/highColor</item>
+    </array>
+</resources>
