@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
@@ -41,6 +42,7 @@ public class HomeActivity extends AppCompatActivity {
     private RelativeLayout mFaceOverlays;
     private FloatingActionButton startPreviewFAB;
     private List<Person> peopleBeingTracked;   // Persons being tracked in the feed
+    private List<Object> outputSurfaces;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +65,7 @@ public class HomeActivity extends AppCompatActivity {
         cameraX.debugOn(true);
 
         // Set the output surfaces for the camera & compute the scales.
-        List<Object> outputSurfaces = new ArrayList<>(1);
+        outputSurfaces = new ArrayList<>(1);
         outputSurfaces.add(mSurfaceView);
         cameraX.setOutputSurfaces(outputSurfaces);
 
@@ -142,6 +144,7 @@ public class HomeActivity extends AppCompatActivity {
                         try {
                             if (firstStart) {
                                 firstStart = false;
+                                Log.d("Checks", "First preview");
                                 cameraX.startLivePreview(getFaceDetectionCallback());
                             } else {
                                 if (recognizing)
@@ -180,7 +183,7 @@ public class HomeActivity extends AppCompatActivity {
                 startPreviewFAB.animate()
                         .scaleX(recognizing ? 1 : 3)
                         .scaleY(recognizing ? 1 : 3)
-                        .translationXBy(recognizing ? (screenWidth - fabWidth*3/4) : -(screenWidth - fabWidth*3/4))
+                        .translationXBy(recognizing ? (screenWidth - fabWidth * 3 / 4) : -(screenWidth - fabWidth * 3 / 4))
                         .setDuration(400)
                         .setListener(listener)
                         .start();
@@ -406,16 +409,42 @@ public class HomeActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (cameraX != null) {
             try {
+                Log.d("Checks", "Stopping the preview.");
                 cameraX.stopLivePreview();
             } catch (CameraAccessException e) {
-                e.printStackTrace();
+                Log.d("Checks", "Exception while stopping the preview (in destroy): " + e.getMessage());
             } finally {
                 cameraX = null;
             }
         }
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onPause();
+
+        if (cameraX != null) {
+            Log.d("Checks", "Restart : Resuming the preview.");
+            try {
+                cameraX.resumeLivePreview();
+            } catch (Exception e) {
+                Log.d("Checks", "Exception while resuming the preview : " + e.getMessage());
+            }
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        startPreviewFAB.performClick();
     }
 }

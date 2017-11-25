@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <array name="modes">
-        <item>Low</item>
-        <item>Mid</item>
-        <item>High</item>
+        <item>Low Level</item>
+        <item>Mid Level</item>
+        <item>High Level</item>
     </array>
 
     <array name="colors">
