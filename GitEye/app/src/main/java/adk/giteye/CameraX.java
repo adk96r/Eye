@@ -4,8 +4,6 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.ImageFormat;
 import android.graphics.drawable.Drawable;
 import android.hardware.camera2.CameraAccessException;
@@ -26,6 +24,7 @@ import android.util.Size;
 import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.TextureView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -189,6 +188,7 @@ public class CameraX {
             @Override
             public void onOpened(CameraDevice camera) {
 
+                Log.d(debugTag, "onOpened @ CameraDeviceStateCallback.");
                 cameraDevice = camera;
                 CaptureRequest captureRequest = null;
                 CameraCaptureSession.StateCallback stateCallback = null;
@@ -341,6 +341,8 @@ public class CameraX {
             //                                          int[] grantResults)
             // to handle the case where the user grants the permission. See the documentation
             // for ActivityCompat#requestPermissions for more details.
+            Toast.makeText(context, "No permission granted to use the camera.", Toast.LENGTH_SHORT)
+                    .show();
             return;
         }
 
@@ -356,8 +358,21 @@ public class CameraX {
     }
 
     public void resumeLivePreview() throws CameraAccessException {
-        //captureSession.setRepeatingRequest()
-        captureSession.setRepeatingRequest(getCaptureRequest(cameraDevice, CameraDevice.TEMPLATE_PREVIEW), livePreviewCaptureCallback, null);
+
+        try {
+            captureSession.setRepeatingRequest(getCaptureRequest(cameraDevice, CameraDevice.TEMPLATE_PREVIEW), livePreviewCaptureCallback, null);
+        } catch (Exception e) {
+            // Probably because the surface targets are not part of
+            // the current capture session.
+            Log.d("Checks", "Using the backup.");
+            cameraDevice.
+                    createCaptureSession(surfaces,
+                            getCaptureSessionCallback(
+                                    getCaptureRequest(cameraDevice,
+                                            CameraDevice.TEMPLATE_PREVIEW),
+                                    livePreviewCaptureCallback), null);
+        }
+
     }
 
     public void stopLivePreview() throws CameraAccessException {
@@ -369,28 +384,12 @@ public class CameraX {
             livePreviewCaptureCallback = null;
         }
 
-        // Clear the surfaces
-        SurfaceView surfaceView;
-        TextureView textureView;
-        int[] colors = {Color.BLACK};
-        Canvas canvas = new Canvas();
-
-        // Make the surface blank and black again.
-        for (Object surface : outputSurfaces) {
-            if (surface instanceof SurfaceView) {
-                surfaceView = ((SurfaceView) surface);
-
-            } else if (surface instanceof TextureView) {
-                textureView = (TextureView) surface;
-
-            }
-        }
-
         // Close the camera device.
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
+                    Log.d("Checks", "Closing the camera.");
                     closeCamera();
                 } catch (CameraAccessException e) {
                     e.printStackTrace();

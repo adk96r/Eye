@@ -1,5 +1,6 @@
 package adk.giteye;
 
+import android.content.Context;
 import android.graphics.Rect;
 
 /**
@@ -11,23 +12,45 @@ import android.graphics.Rect;
 
 public class Person {
 
+    Context context;
+    int LOD;
     private String name;
+    private long rollNo;
+    private int sem;
+    private String branch;
+    private float attendance;
     private Rect bounds;
     private boolean beingTracked;
-
     private int faceBorderColor;    // For debug purposes.
+    private PersonInfoView personInfoView;
 
-    public Person() {
+    public Person(Context context, Rect bounds, int LOD) {
+        this.context = context;
         this.name = "None";
-        bounds = null;
-        this.beingTracked = true;
-    }
-
-    public Person(String name, Rect bounds) {
-        this.name = name;
+        this.rollNo = -1;
+        this.sem = 0;
+        this.branch = "None";
+        this.attendance = 0.0f;
         this.bounds = bounds;
         this.beingTracked = true;
+        this.LOD = LOD;
+        personInfoView = new PersonInfoView(context, bounds, this, LOD);
     }
+
+    public Person(Context context, String name, long rollNo, int sem, String branch,
+                  float attendance, Rect bounds, int LOD) {
+        this.context = context;
+        this.name = name;
+        this.rollNo = rollNo;
+        this.sem = sem;
+        this.branch = branch;
+        this.attendance = attendance;
+        this.bounds = bounds;
+        this.beingTracked = true;
+        this.LOD = LOD;
+        personInfoView = new PersonInfoView(context, bounds, this, LOD);
+    }
+
 
     /**
      * Returns the name of the person.
@@ -37,6 +60,23 @@ public class Person {
     public String getName() {
         return name;
     }
+
+    public long getRollNo() {
+        return rollNo;
+    }
+
+    public int getSem() {
+        return sem;
+    }
+
+    public float getAttendance() {
+        return attendance;
+    }
+
+    public String getBranch() {
+        return branch;
+    }
+
 
     public boolean isBeingTracked() {
         return beingTracked;
@@ -80,5 +120,27 @@ public class Person {
      */
     public void updateBounds(Rect newBounds) {
         this.bounds = newBounds;
+        this.personInfoView.updateBounds(bounds);
+    }
+
+    public void updateLOD(int LOD) {
+        this.LOD = LOD;
+        this.personInfoView.updateLOD(LOD);
+    }
+
+    public PersonInfoView getPersonInfoView() {
+        return personInfoView;
+    }
+
+    public String getInfo(int LOD) {
+
+        if (LOD == 0)
+            return name;
+        if (LOD == 1)
+            return String.valueOf(rollNo);
+        if (LOD == 2)
+            return "Sem:" + sem + "|" + branch + "|" + attendance;
+        else
+            return "";
     }
 }
