@@ -1,7 +1,7 @@
 package adk.giteye;
 
 import android.animation.Animator;
-import android.graphics.Color;
+import android.content.Context;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
@@ -14,21 +14,23 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.util.Size;
 import android.view.SurfaceView;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import adk.selectorswitch.SelectorSwitch;
+
 
 public class HomeActivity extends AppCompatActivity {
 
+    Context context;
     int screenMaxX, screenMaxY;
     float scaleX, scaleY;
     boolean firstStart = true;      // Initial camera start
@@ -36,13 +38,15 @@ public class HomeActivity extends AppCompatActivity {
     View introHintView = null;
     int currentFaceColor = 0;
     double threshold = 50;          // Max Euclidean Distance for similar faces
-
+    SelectorSwitch selectorSwitch;
+    int LOD;
     private CameraX cameraX;        // Camera
     private SurfaceView mSurfaceView;
     private RelativeLayout mFaceOverlays;
     private FloatingActionButton startPreviewFAB;
     private List<Person> peopleBeingTracked;   // Persons being tracked in the feed
     private List<Object> outputSurfaces;
+    private TextView detectedTextView, trackingTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,12 +58,26 @@ public class HomeActivity extends AppCompatActivity {
         if (supportActionBar != null)
             supportActionBar.hide();
 
+        context = getApplicationContext();
+        selectorSwitch = (SelectorSwitch) findViewById(R.id.LODSwitch);
+        LOD = selectorSwitch.getCurrentMode();
+        selectorSwitch.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectorSwitch.selectNextMode();
+                LOD = selectorSwitch.getCurrentMode();
+            }
+        });
 
         // Initally the recognition is off.
         recognizing = false;
         introHintView = findViewById(R.id.introHint);
         mFaceOverlays = (RelativeLayout) findViewById(R.id.faces);
         mSurfaceView = (SurfaceView) findViewById(R.id.surfaceView);
+
+        detectedTextView = (TextView) findViewById(R.id.detectedTextView);
+        trackingTextView = (TextView) findViewById(R.id.trackingTextView);
+
         startPreviewFAB = (FloatingActionButton) findViewById(R.id.startPreviewBtn);
         cameraX = new CameraX(this, "BackCamera", CameraX.CAMERA_BACK);
         cameraX.debugOn(true);
@@ -144,7 +162,6 @@ public class HomeActivity extends AppCompatActivity {
                         try {
                             if (firstStart) {
                                 firstStart = false;
-                                Log.d("Checks", "First preview");
                                 cameraX.startLivePreview(getFaceDetectionCallback());
                             } else {
                                 if (recognizing)
@@ -192,6 +209,11 @@ public class HomeActivity extends AppCompatActivity {
         };
     }
 
+    /**
+     * The main ting
+     *
+     * @return CaptureCallback
+     */
     private CameraCaptureSession.CaptureCallback getFaceDetectionCallback() {
 
         return new CameraCaptureSession.CaptureCallback() {
@@ -215,13 +237,20 @@ public class HomeActivity extends AppCompatActivity {
 
                 // Get the new face borders
                 Face allFaces[] = result.get(CaptureResult.STATISTICS_FACES);
+                Rect bounds;
 
                 if (allFaces != null) {
                     // Check if the detected faces have also been detected in the previous frame by
                     // associating previous frames with current frames and forming similar pairs.
                     for (Face face : allFaces) {
 
-                        id = beingTracked(face.getBounds());
+                        bounds = face.getBounds();
+                        bounds.left = (int) (bounds.left * scaleX);
+                        bounds.top = (int) (bounds.top * scaleY);
+                        bounds.right = (int) (bounds.right * scaleX);
+                        bounds.bottom = (int) (bounds.bottom * scaleY);
+
+                        id = beingTracked(bounds);
 
                         if (id != -1) {
 
@@ -231,8 +260,9 @@ public class HomeActivity extends AppCompatActivity {
 
                             p = peopleBeingTracked.get(id);
                             p.setBeingTracked(true);
-                            p.updateBounds(face.getBounds());
-                            drawFace(p, peopleBeingTracked.get(id).getFaceBorderColor());
+                            p.updateBounds(bounds);
+                            p.updateLOD(LOD);
+                            drawFace(p);
 
                         } else {
 
@@ -241,7 +271,8 @@ public class HomeActivity extends AppCompatActivity {
 
                             // Do it Async-ly
 
-                            p = new Person("Aditya" + currentFaceColor, face.getBounds());
+                            p = new Person(context, "Aditya", 1210314802, 8,
+                                    "CSE", 85.0f, bounds, LOD);
                             currentFaceColor = (currentFaceColor + 1) % 8;
                             p.setFaceBorderColor(currentFaceColor);
 
@@ -264,6 +295,8 @@ public class HomeActivity extends AppCompatActivity {
                     peopleBeingTracked.remove(person);
                 }
 
+                detectedTextView.setText("Detected: " + allFaces.length);
+                trackingTextView.setText("Tracking: " + peopleBeingTracked.size());
                 untrackedPeople = null;
             }
         };
@@ -320,94 +353,26 @@ public class HomeActivity extends AppCompatActivity {
         cy2 = (float) newFaceBounds.top + ((float) newFaceBounds.height() / 2);
 
         euclideanDistance = Math.hypot((cx2 - cx1), (cy2 - cy1));
-        // Log.d("Checkss", "Centre P (" + cx1 + ", " + cy1 + ")  Center Q (" + cx2 + ", " + cy2
-        // + ")  Hypot = " + euclideanDistance);
-        // 40 ~ 50 is the sweet range for a good similarity threshold.
         return euclideanDistance;
     }
 
     /**
-     * Draw the outline of any face of the person. Draw the outline as 4
-     * lines (views) top, right, bottom and left edges.
+     * Draws a box around the person's face and shows the person's details below
+     * the box.
      *
-     * @param person     whose face will be drawn.
-     * @param colorIndex of the face. ( for choosing a different color for each face )
+     * @param person whose face will be drawn.
      */
-    private void drawFace(Person person, int colorIndex) {
+    private void drawFace(Person person) {
 
-        float transparency = 1.0f;
         Rect bounds = person.getBounds();
-        int top, left, bottom, right, lineThickness;
-
-        lineThickness = 4;
-
-        top = (int) (bounds.top * scaleY);
-        left = (int) (bounds.left * scaleX);
-        right = (int) (bounds.right * scaleX);
-        bottom = (int) (bounds.bottom * scaleY);
-
-        try {
-            mFaceOverlays.addView(setDimensions(top, left, right - left, lineThickness, transparency, colorIndex));    // Top Border
-            mFaceOverlays.addView(setDimensions(top, left, lineThickness, bottom - top, transparency, colorIndex));    // Left Border
-            mFaceOverlays.addView(setDimensions(top, right, lineThickness, right - left, transparency, colorIndex));    // Right Border
-            mFaceOverlays.addView(setDimensions(bottom, left, right - left, lineThickness, transparency, colorIndex));    // Bottom Border
-        } catch (Exception e) {
-            // Problem while creating the face border.
-        }
-
+        View v = person.getPersonInfoView();
+        v.setX(bounds.left - Util.dpToPixels(context, 4));
+        v.setY(bounds.top - Util.dpToPixels(context, 4));
+        mFaceOverlays.addView(v);
     }
 
-    /**
-     * Create a view object which is a simple line from (top, left) to (right, bottom).
-     * Useful while drawing the edges of the face border in drawFace(Person, int).
-     *
-     * @param top    coordinate
-     * @param left   coordinate
-     * @param width  of the line
-     * @param height of the line
-     * @param alpha  of the line (!00%)
-     * @param index  of color of the line.
-     * @return View ( a line )
-     */
-    View setDimensions(int top, int left, int width, int height, float alpha, int index) {
 
-        View v = new View(getApplicationContext());
-        ViewGroup.LayoutParams lp = new ViewGroup.LayoutParams(width, height);
-        v.setX(left);
-        v.setY(top);
-        v.setLayoutParams(lp);
-        v.setAlpha(alpha);
-        v.setBackgroundColor(getFaceColor(index));
-        return v;
-    }
-
-    /**
-     * Return one of the 7 available colors.
-     *
-     * @param index of the color.
-     * @return color code.
-     */
-    private int getFaceColor(int index) {
-        switch (index) {
-            case 0:
-                return Color.CYAN;
-            case 1:
-                return Color.BLUE;
-            case 2:
-                return Color.YELLOW;
-            case 3:
-                return Color.MAGENTA;
-            case 4:
-                return Color.WHITE;
-            case 5:
-                return Color.GREEN;
-            case 6:
-                return Color.GRAY;
-            default:
-                return Color.LTGRAY;
-        }
-    }
-
+    /* Activity lifecycle */
     @Override
     protected void onStop() {
         super.onStop();
@@ -418,10 +383,8 @@ public class HomeActivity extends AppCompatActivity {
         super.onDestroy();
         if (cameraX != null) {
             try {
-                Log.d("Checks", "Stopping the preview.");
                 cameraX.stopLivePreview();
-            } catch (CameraAccessException e) {
-                Log.d("Checks", "Exception while stopping the preview (in destroy): " + e.getMessage());
+            } catch (CameraAccessException ignored) {
             } finally {
                 cameraX = null;
             }
@@ -433,11 +396,9 @@ public class HomeActivity extends AppCompatActivity {
         super.onPause();
 
         if (cameraX != null) {
-            Log.d("Checks", "Restart : Resuming the preview.");
             try {
                 cameraX.resumeLivePreview();
-            } catch (Exception e) {
-                Log.d("Checks", "Exception while resuming the preview : " + e.getMessage());
+            } catch (Exception ignored) {
             }
         }
     }
