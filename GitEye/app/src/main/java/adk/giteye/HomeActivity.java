@@ -1,137 +1,345 @@
 package adk.giteye;
 
+import android.Manifest;
 import android.animation.Animator;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraDevice;
+import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.Face;
+import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.ImageReader;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.util.Size;
+import android.view.Surface;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import adk.selectorswitch.SelectorSwitch;
 
 
 public class HomeActivity extends AppCompatActivity {
 
-    Context context;
-    int screenMaxX, screenMaxY;
-    float scaleX, scaleY;
-    boolean firstStart = true;      // Initial camera start
-    boolean recognizing = false;    // Camera preview status
-    View introHintView = null;
-    int currentFaceColor = 0;
-    double threshold = 50;          // Max Euclidean Distance for similar faces
-    SelectorSwitch selectorSwitch;
-    int LOD;
-    private CameraX cameraX;        // Camera
+    private final static double THRESHOLD = 50;          // Max Euclidean Distance for similar faces
+    private final static int DEFAULT_OUTPUT_WIDTH = 1080;
+    private final static String TAG = "Checks";
+    private CameraDevice mCameraDevice;
+    private Size mCameraOutputSize;
+    private CameraCaptureSession mCameraCaptureSession;
+    private String mCameraId;
+    private CaptureRequest mCaptureRequest;
+    private CameraCaptureSession.StateCallback mCaptureSessionStateCallback;
+    private CameraCaptureSession.CaptureCallback mCaptureCallback;
+
+    // Dimensions
+    private int screenMaxX, screenMaxY;
+    private float scaleX, scaleY;
+    // App state
+    private boolean firstStart = true;      // Initial camera start
+    private boolean recognizing = false;    // Camera preview status
+    // Views
+    private View introHintView;
     private SurfaceView mSurfaceView;
+    private SelectorSwitch mSelectorSwitch;
+    private TextView mDetectedTextView, mTrackingTextView;
     private RelativeLayout mFaceOverlays;
-    private FloatingActionButton startPreviewFAB;
+    private FloatingActionButton previewFAB;
+    // For Operations
+    private Context context;
     private List<Person> peopleBeingTracked;   // Persons being tracked in the feed
-    private List<Object> outputSurfaces;
-    private TextView detectedTextView, trackingTextView;
+    private int LOD;
+    private List<Surface> outputSurfaces;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        setContentView(R.layout.activity_home);
-        android.support.v7.app.ActionBar supportActionBar =
-                getSupportActionBar();
-        if (supportActionBar != null)
-            supportActionBar.hide();
-
         context = getApplicationContext();
-        selectorSwitch = (SelectorSwitch) findViewById(R.id.LODSwitch);
-        LOD = selectorSwitch.getCurrentMode();
-        selectorSwitch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                selectorSwitch.selectNextMode();
-                LOD = selectorSwitch.getCurrentMode();
-            }
-        });
+        setContentView(R.layout.activity_home);
 
-        // Initally the recognition is off.
-        recognizing = false;
+        try {
+            getSupportActionBar().hide();
+        } catch (NullPointerException ignored) {
+            Log.d(TAG, "Null pointer exception while hiding the action bar.");
+        } catch (Exception e) {
+            Log.d(TAG, "Eexception while hiding the action bar : " + e.getMessage());
+        }
+
+
         introHintView = findViewById(R.id.introHint);
-        mFaceOverlays = (RelativeLayout) findViewById(R.id.faces);
+        mFaceOverlays = (RelativeLayout) findViewById(R.id.facesOverlay);
         mSurfaceView = (SurfaceView) findViewById(R.id.surfaceView);
+        mDetectedTextView = (TextView) findViewById(R.id.detectedTextView);
+        mTrackingTextView = (TextView) findViewById(R.id.trackingTextView);
+        mSelectorSwitch = (SelectorSwitch) findViewById(R.id.LODSwitch);
+        previewFAB = (FloatingActionButton) findViewById(R.id.startPreviewBtn);
 
-        detectedTextView = (TextView) findViewById(R.id.detectedTextView);
-        trackingTextView = (TextView) findViewById(R.id.trackingTextView);
-
-        startPreviewFAB = (FloatingActionButton) findViewById(R.id.startPreviewBtn);
-        cameraX = new CameraX(this, "BackCamera", CameraX.CAMERA_BACK);
-        cameraX.debugOn(true);
-
-        // Set the output surfaces for the camera & compute the scales.
-        outputSurfaces = new ArrayList<>(1);
-        outputSurfaces.add(mSurfaceView);
-        cameraX.setOutputSurfaces(outputSurfaces);
-
-        // Set face detection preference for capture requests.
-        Map<CaptureRequest.Key, Integer> options = new HashMap<>();
-        options.put(CaptureRequest.STATISTICS_FACE_DETECT_MODE, CaptureRequest.STATISTICS_FACE_DETECT_MODE_FULL);
-        cameraX.setCaptureRequestOptions(options);
-
-        // Only show the hints.
-        introHintView.setVisibility(View.VISIBLE);
-
-        // Tapping the play FAB.
-        startPreviewFAB.setOnClickListener(getPreviewFABListener());
-
-        // Calculate the screen dimensions and set the scales.
         mSurfaceView.post(new Runnable() {
             @Override
             public void run() {
                 screenMaxX = mSurfaceView.getWidth();
                 screenMaxY = mSurfaceView.getHeight();
-
-                if (cameraX == null) {
-                    scaleX = scaleY = 1;
-                    return;
-                }
-
-                Size imageSize = cameraX.getMaxOutputSize(ImageFormat.JPEG);
-
-                scaleX = screenMaxX / (float) imageSize.getWidth();
-                scaleY = screenMaxY / (float) imageSize.getHeight();
+                setupInitialState();
+                setupOutputSurfaces();
+                setupCamera();
             }
         });
+    }
 
-        // Initially no people are tracked.
+    private void setupInitialState() {
+        introHintView.setVisibility(View.VISIBLE);
+        previewFAB.setOnClickListener(getPreviewFABListener());
         peopleBeingTracked = new ArrayList<>();
+        mSelectorSwitch.setOnClickListener(getSelectorSwitchOnClickListener());
 
+        Log.d(TAG, "Initial setup done.");
+    }
+
+    private void setupOutputSurfaces() {
+
+        outputSurfaces = new ArrayList<>(2);
+
+        // For the live preview.
+        outputSurfaces.add(mSurfaceView.getHolder().getSurface());
+
+        // For extracting the image.
+        ImageReader mImageReader = ImageReader.newInstance(screenMaxX, screenMaxY, ImageFormat.YUV_420_888, 4);
+        //outputSurfaces.add(mImageReader.getSurface());
+
+        //mImageReader.setOnImageAvailableListener(getImageAvailableListener(), null);
+
+        Log.d(TAG, "Done setting the output surfaces.");
     }
 
     /**
-     * Listens to the click events of FAB and either starts/pauses/resumes
-     * the camera preview.
-     * <p>
-     * Also fades out the hint overlay and shrinks and moves aside the FAB
-     * upon starting the preview; expands and centres upon pausing.
-     *
-     * @return onClickListener
+     * Gets the back camera's details and opens it and creates a capture
+     * session with a repeating request built using the PREVIEW template.
+     * Hence, mCameraDevice, mCameraOutputSize, scales, mCaptureSession
+     * and mCaptureRequest are initialised.
      */
+    private void setupCamera() {
+
+        CameraManager mCameraManger = (CameraManager) getSystemService(CAMERA_SERVICE);
+        mCaptureSessionStateCallback = getCameraCaptureSessionStateCallback();
+        mCaptureCallback = getFaceDetectionCallback();
+
+        CameraCharacteristics characteristics;
+        StreamConfigurationMap streamConfigurationMap;
+
+        // Get the camera ID and calculate the scales based on the output size.
+        try {
+
+            for (String cameraID : mCameraManger.getCameraIdList()) {
+
+                characteristics = mCameraManger.getCameraCharacteristics(cameraID);
+
+                // Check if its the back camera
+                if (characteristics.get(CameraCharacteristics.LENS_FACING).intValue() ==
+                        CameraCharacteristics.LENS_FACING_BACK) {
+
+                    Log.d(TAG, "Got id for the back camera.");
+
+                    mCameraId = cameraID;
+                    streamConfigurationMap = characteristics
+                            .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
+                    if (streamConfigurationMap == null) {
+                        Log.d(TAG, "Got an empty stream configuration map.");
+                        return;
+                    }
+
+                    if (streamConfigurationMap.getOutputSizes(ImageFormat.JPEG).length == 0) {
+                        Log.d(TAG, "Output sizes array is of length 0.");
+                        return;
+                    }
+
+                    for (Size size : streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)) {
+                        if (size.getHeight() == DEFAULT_OUTPUT_WIDTH) {
+                            mCameraOutputSize = size;
+                            Log.d(TAG, "Got the perfect output size for the back camera.");
+                            break;
+                        }
+                    }
+                    break;
+                }
+            }
+
+            scaleX = (float) mCameraOutputSize.getWidth() / screenMaxX;
+            scaleY = (float) mCameraOutputSize.getHeight() / screenMaxY;
+            Log.d(TAG, "Initialised the scales.");
+
+        } catch (Exception e) {
+            Log.d(TAG, "Exception while getting the camera IDs - " + e.getMessage());
+            return;
+        }
+
+
+        // Open the camera and initialise the mCameraDevice.
+        try {
+
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
+            }
+            mCameraManger.openCamera(mCameraId, getCameraDeviceStateCallback(), null);
+        } catch (CameraAccessException e) {
+            Log.d(TAG, "CameraAccessException while opening the camera - "
+                    + e.getMessage());
+        } catch (Exception e) {
+            Log.d(TAG, "Exception while opening the camera - "
+                    + e.getMessage());
+        }
+
+    }
+
+    private CameraDevice.StateCallback getCameraDeviceStateCallback() {
+        return new CameraDevice.StateCallback() {
+            @Override
+            public void onOpened(@NonNull CameraDevice camera) {
+
+                mCameraDevice = camera;
+                mCaptureRequest = getCaptureRequest();
+                Log.d(TAG, "Initialised the camera device.");
+
+                try {
+                    mCameraDevice.createCaptureSession(outputSurfaces,
+                            mCaptureSessionStateCallback, null);
+                } catch (CameraAccessException exception) {
+                    Log.d(TAG, "CameraAccessException while creating the capture session - "
+                            + exception.getMessage());
+                }
+            }
+
+            @Override
+            public void onDisconnected(@NonNull CameraDevice camera) {
+                Log.d(TAG, "Camera disconnected.");
+            }
+
+            @Override
+            public void onError(@NonNull CameraDevice camera, int error) {
+                Log.d(TAG, "Error while opening the camera.");
+            }
+        };
+    }
+
+    private CameraCaptureSession.StateCallback getCameraCaptureSessionStateCallback() {
+        return new CameraCaptureSession.StateCallback() {
+            @Override
+            public void onConfigured(@NonNull CameraCaptureSession session) {
+                mCameraCaptureSession = session;
+                Log.d(TAG, "Configuration of the session successful.");
+            }
+
+            @Override
+            public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+                Log.d(TAG, "Configuration of the session failed.");
+            }
+        };
+    }
+
+    private CaptureRequest getCaptureRequest() {
+
+        CaptureRequest.Builder builder = null;
+        try {
+            builder = mCameraDevice.
+                    createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+
+            builder.set(CaptureRequest.STATISTICS_FACE_DETECT_MODE,
+                    CaptureRequest.STATISTICS_FACE_DETECT_MODE_FULL);
+
+            for (Surface surface : outputSurfaces) {
+                builder.addTarget(surface);
+            }
+
+        } catch (CameraAccessException e) {
+            Log.d(TAG, "CameraAccessException while creating the capture request - "
+                    + e.getMessage());
+        } catch (Exception e) {
+            Log.d(TAG, "Exception while creating the capture request - " + e.getMessage());
+        }
+
+        if (builder == null) return null;
+        else return builder.build();
+    }
+
+    private void startCameraPreview() {
+
+        try {
+            mCameraCaptureSession.setRepeatingRequest(mCaptureRequest, mCaptureCallback, null);
+        } catch (CameraAccessException e) {
+            Log.d(TAG, "CameraAccessException while setting a repeating request - "
+                    + e.getMessage());
+            previewFAB.performClick();
+        } catch (Exception e) {
+            Log.d(TAG, "Failed to start the camera preview - " + e.getMessage());
+            previewFAB.performClick();
+        }
+
+    }
+
+    private void pauseCameraPreview() {
+
+        try {
+            mCameraCaptureSession.stopRepeating();
+        } catch (CameraAccessException e) {
+            Log.d(TAG, "CameraAccessException while stopping the repeating request - "
+                    + e.getMessage());
+        } catch (Exception e) {
+            Log.d(TAG, "Exception while stopping the repeating request - "
+                    + e.getMessage());
+        }
+    }
+
+    private void resumeCameraPreview() {
+        try {
+            mCameraCaptureSession.setRepeatingRequest(mCaptureRequest, mCaptureCallback, null);
+        } catch (CameraAccessException e) {
+            Log.d(TAG, "CameraAccessException while resuming the preview - "
+                    + e.getMessage());
+        } catch (Exception e) {
+            Log.d(TAG, "Exception while resuming the preview - "
+                    + e.getMessage());
+        }
+    }
+
+    private void stopCameraPreview() {
+
+        try {
+            mCameraCaptureSession.stopRepeating();
+            mCameraCaptureSession = null;
+        } catch (CameraAccessException e) {
+            Log.d(TAG, "CameraAccessException while stopping the preview - " + e.getMessage());
+        } catch (Exception e) {
+            Log.d(TAG, "Exception while stopping the preview - " + e.getMessage());
+        }
+
+    }
+
     private FloatingActionButton.OnClickListener getPreviewFABListener() {
+
         return new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -143,34 +351,25 @@ public class HomeActivity extends AppCompatActivity {
                     @Override
                     public void onAnimationStart(Animator animation) {
 
-                        try {
-                            // Fade out the hints
-                            introHintView.animate()
-                                    .alpha(recognizing ? 0.0f : 1.0f)
-                                    .setDuration(400)
-                                    .start();
-
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+                        // Fade out the hints
+                        introHintView.animate()
+                                .alpha(recognizing ? 0.0f : 1.0f)
+                                .setDuration(400)
+                                .start();
                     }
 
                     @Override
                     public void onAnimationEnd(Animator animation) {
 
                         // Start the feed.
-                        try {
-                            if (firstStart) {
-                                firstStart = false;
-                                cameraX.startLivePreview(getFaceDetectionCallback());
-                            } else {
-                                if (recognizing)
-                                    cameraX.resumeLivePreview();
-                                else
-                                    cameraX.pauseLivePreview();
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                        if (firstStart) {
+                            firstStart = false;
+                            startCameraPreview();
+                        } else {
+                            if (recognizing)
+                                resumeCameraPreview();
+                            else
+                                pauseCameraPreview();
                         }
                     }
 
@@ -183,21 +382,22 @@ public class HomeActivity extends AppCompatActivity {
                     public void onAnimationRepeat(Animator animation) {
 
                     }
+
                 };
 
                 if (recognizing) {
                     // User started the preview.
-                    startPreviewFAB.setImageDrawable(getDrawable(R.drawable.ic_pause_black_24dp));
+                    previewFAB.setImageDrawable(getDrawable(R.drawable.ic_pause_black_24dp));
 
                 } else {
                     // User paused the preview.
-                    startPreviewFAB.setImageDrawable(getDrawable(R.drawable.ic_play_arrow_black_24dp));
+                    previewFAB.setImageDrawable(getDrawable(R.drawable.ic_play_arrow_black_24dp));
                 }
 
                 float screenWidth = (getWindow().getDecorView().getWidth()) / 2;
-                float fabWidth = startPreviewFAB.getWidth();
+                float fabWidth = previewFAB.getWidth();
 
-                startPreviewFAB.animate()
+                previewFAB.animate()
                         .scaleX(recognizing ? 1 : 3)
                         .scaleY(recognizing ? 1 : 3)
                         .translationXBy(recognizing ? (screenWidth - fabWidth * 3 / 4) : -(screenWidth - fabWidth * 3 / 4))
@@ -205,6 +405,22 @@ public class HomeActivity extends AppCompatActivity {
                         .setListener(listener)
                         .start();
 
+            }
+        };
+    }
+
+    private View.OnClickListener getSelectorSwitchOnClickListener() {
+        return new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Set the new mode.
+                mSelectorSwitch.selectNextMode();
+                LOD = mSelectorSwitch.getCurrentMode();
+
+                // Update the canvas, i.e, the face overlays for each person.
+                for (Person person : peopleBeingTracked) {
+                    person.updateLOD(LOD);
+                }
             }
         };
     }
@@ -220,101 +436,102 @@ public class HomeActivity extends AppCompatActivity {
 
             @Override
             public void onCaptureCompleted(@NonNull CameraCaptureSession session,
-                                           @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                                           @NonNull CaptureRequest request,
+                                           @NonNull TotalCaptureResult result) {
 
                 super.onCaptureCompleted(session, request, result);
 
-                int id;
+                int oldFaceId;
                 Person p;
+                Face faces[];
 
                 // Remove the old face borders.
                 mFaceOverlays.removeAllViews();
 
                 // Un-track everyone temporarily.
                 for (Person person : peopleBeingTracked) {
-                    person.setBeingTracked(false);
+                    person.setTrackingStatus(Person.UNTRACKED);
                 }
 
                 // Get the new face borders
-                Face allFaces[] = result.get(CaptureResult.STATISTICS_FACES);
+                faces = result.get(CaptureResult.STATISTICS_FACES);
                 Rect bounds;
 
-                if (allFaces != null) {
-                    // Check if the detected faces have also been detected in the previous frame by
-                    // associating previous frames with current frames and forming similar pairs.
-                    for (Face face : allFaces) {
+                if (faces == null) {
+                    Log.d(TAG, "Faces array is null.");
+                    return;
+                }
 
-                        bounds = face.getBounds();
-                        bounds.left = (int) (bounds.left * scaleX);
-                        bounds.top = (int) (bounds.top * scaleY);
-                        bounds.right = (int) (bounds.right * scaleX);
-                        bounds.bottom = (int) (bounds.bottom * scaleY);
+                // Check if the detected faces have also been detected in the previous frame by
+                // associating previous frames with current frames and forming similar pairs.
+                for (Face face : faces) {
 
-                        id = beingTracked(bounds);
+                    // Rescale the boundary of the face, for the screen.
+                    bounds = face.getBounds();
+                    bounds.left = (int) (bounds.left * scaleX);
+                    bounds.top = (int) (bounds.top * scaleY);
+                    bounds.right = (int) (bounds.right * scaleX);
+                    bounds.bottom = (int) (bounds.bottom * scaleY);
 
-                        if (id != -1) {
 
-                            // Being tracked in both the previous frame and current frame. Continue
-                            // tracking it with the slightly shifted bounds and also draw the border
-                            // around the person's face.
+                    oldFaceId = getPersonIdFromOldFaces(bounds);
 
-                            p = peopleBeingTracked.get(id);
-                            p.setBeingTracked(true);
-                            p.updateBounds(bounds);
-                            p.updateLOD(LOD);
-                            drawFace(p);
+                    if (oldFaceId != -1) {
 
-                        } else {
+                        // Being tracked in both the previous frame and current frame. Continue
+                        // tracking it with the slightly shifted bounds and also draw the border
+                        // around the person's face.
+                        p = peopleBeingTracked.get(oldFaceId);
+                        p.setTrackingStatus(Person.TRACKING);
+                        p.updateBounds(bounds);
+                        drawFace(p);
 
-                            // Either a new face (or) Face has displaced proportionaly between
-                            // the two frames. So create a new Person, and query it.
+                    } else {
 
-                            // Do it Async-ly
-
-                            p = new Person(context, "Aditya", 1210314802, 8,
-                                    "CSE", 85.0f, bounds, LOD);
-                            currentFaceColor = (currentFaceColor + 1) % 8;
-                            p.setFaceBorderColor(currentFaceColor);
-
-                            // Add the new person to the list of people being tracked.
-                            peopleBeingTracked.add(p);
-
-                        }
+                        // Either a new face (or) Face has displaced proportionaly between
+                        // the two frames. So create a new Person which will automatically
+                        // query it.
+                        p = new Person(context, bounds, LOD);
+                        peopleBeingTracked.add(p);
                     }
                 }
 
                 // Remove the persons who aren't being tracked.
-                List<Person> untrackedPeople = new ArrayList<>();
+                List<Person> unknownPeople = new ArrayList<>();
 
                 for (Person person : peopleBeingTracked) {
-                    if (!person.isBeingTracked())
-                        untrackedPeople.add(person);
+                    if (person.getTrackingStatus() == Person.UNTRACKED) {
+                        unknownPeople.add(person);
+                    }
                 }
 
-                for (Person person : untrackedPeople) {
+                for (Person person : unknownPeople) {
                     peopleBeingTracked.remove(person);
                 }
 
-                detectedTextView.setText("Detected: " + allFaces.length);
-                trackingTextView.setText("Tracking: " + peopleBeingTracked.size());
-                untrackedPeople = null;
+                mDetectedTextView.setText("Detected: " + faces.length);
+                mTrackingTextView.setText("Tracking: " + peopleBeingTracked.size());
             }
         };
 
     }
 
     /**
-     * Compare the @faceBounds with face bounds being
-     * tracked to check how far they are from each other.
-     * If really close ( < threshold ) return who's face
-     * it could be ( ID of the Person in peopleBeingTracked
-     * List ). If large then the face could be a new one. So
-     * return -1.
+     * Also an importatn ting
      *
-     * @param faceBounds to be compared.
-     * @return the ID of the person in array of people being tracked currently.
+     * @return ImageReader.OnImageAvailableListener
      */
-    private int beingTracked(Rect faceBounds) {
+    private ImageReader.OnImageAvailableListener getImageAvailableListener() {
+        return new ImageReader.OnImageAvailableListener() {
+            @Override
+            public void onImageAvailable(ImageReader reader) {
+
+            }
+        };
+    }
+
+
+    private int getPersonIdFromOldFaces(Rect faceBounds) {
 
         int id = -1;
         double deviation;
@@ -322,7 +539,7 @@ public class HomeActivity extends AppCompatActivity {
         for (int i = 0; i < peopleBeingTracked.size(); i++) {
 
             deviation = getSimilarity(peopleBeingTracked.get(i).getBounds(), faceBounds);
-            if (deviation < threshold) {
+            if (deviation < THRESHOLD) {
                 id = i;
                 break;
             }
@@ -363,7 +580,6 @@ public class HomeActivity extends AppCompatActivity {
      * @param person whose face will be drawn.
      */
     private void drawFace(Person person) {
-
         Rect bounds = person.getBounds();
         View v = person.getPersonInfoView();
         v.setX(bounds.left - Util.dpToPixels(context, 4));
@@ -373,39 +589,23 @@ public class HomeActivity extends AppCompatActivity {
 
 
     /* Activity lifecycle */
-    @Override
-    protected void onStop() {
-        super.onStop();
-    }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (cameraX != null) {
-            try {
-                cameraX.stopLivePreview();
-            } catch (CameraAccessException ignored) {
-            } finally {
-                cameraX = null;
-            }
-        }
+        stopCameraPreview();
     }
 
     @Override
     protected void onRestart() {
         super.onPause();
 
-        if (cameraX != null) {
-            try {
-                cameraX.resumeLivePreview();
-            } catch (Exception ignored) {
-            }
-        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        startPreviewFAB.performClick();
+        previewFAB.performClick();
     }
+
 }

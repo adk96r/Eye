@@ -12,33 +12,38 @@ import android.graphics.Rect;
 
 public class Person {
 
-    Context context;
-    int LOD;
+    public static final int UNTRACKED = 0;
+    public static final int TRACKING = 1;
+
+    private static final String NAME = "ABCDEF";
+    private static final long ROLLNO = 1210314800;
+    private static final int SEM = 0;
+    private static final String BRANCH = "ABCDEF";
+    private static final float ATT = -0.0f;
+
+    private Context context;
+    private int LOD;
     private String name;
     private long rollNo;
     private int sem;
     private String branch;
     private float attendance;
     private Rect bounds;
-    private boolean beingTracked;
+    private int trackingStatus;
     private int faceBorderColor;    // For debug purposes.
     private PersonInfoView personInfoView;
 
     public Person(Context context, Rect bounds, int LOD) {
-        this.context = context;
-        this.name = "None";
-        this.rollNo = -1;
-        this.sem = 0;
-        this.branch = "None";
-        this.attendance = 0.0f;
-        this.bounds = bounds;
-        this.beingTracked = true;
-        this.LOD = LOD;
-        personInfoView = new PersonInfoView(context, bounds, this, LOD);
+        init(context, NAME, ROLLNO, SEM, BRANCH, ATT, bounds, LOD);
     }
 
     public Person(Context context, String name, long rollNo, int sem, String branch,
                   float attendance, Rect bounds, int LOD) {
+        init(context, name, rollNo, sem, branch, attendance, bounds, LOD);
+    }
+
+    private void init(Context context, String name, long rollNo, int sem, String branch,
+                      float attendance, Rect bounds, int LOD) {
         this.context = context;
         this.name = name;
         this.rollNo = rollNo;
@@ -46,7 +51,7 @@ public class Person {
         this.branch = branch;
         this.attendance = attendance;
         this.bounds = bounds;
-        this.beingTracked = true;
+        this.trackingStatus = TRACKING;
         this.LOD = LOD;
         personInfoView = new PersonInfoView(context, bounds, this, LOD);
     }
@@ -78,29 +83,12 @@ public class Person {
     }
 
 
-    public boolean isBeingTracked() {
-        return beingTracked;
+    public int getTrackingStatus() {
+        return trackingStatus;
     }
 
-    public void setBeingTracked(boolean beingTracked) {
-        this.beingTracked = beingTracked;
-    }
-
-    /**
-     * @return faceBorderColor
-     */
-    public int getFaceBorderColor() {
-        return faceBorderColor;
-    }
-
-    /**
-     * Updated every time the face is considered new and is added
-     * to the tracking list
-     *
-     * @param faceBorderColor - random color passed as arg.
-     */
-    public void setFaceBorderColor(int faceBorderColor) {
-        this.faceBorderColor = faceBorderColor;
+    public void setTrackingStatus(int trackingStatus) {
+        this.trackingStatus = trackingStatus;
     }
 
     /**
@@ -123,6 +111,12 @@ public class Person {
         this.personInfoView.updateBounds(bounds);
     }
 
+    /**
+     * Updates the Level of detail and shows the appropriate
+     * details.
+     *
+     * @param LOD
+     */
     public void updateLOD(int LOD) {
         this.LOD = LOD;
         this.personInfoView.updateLOD(LOD);

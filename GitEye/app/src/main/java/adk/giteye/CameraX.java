@@ -151,7 +151,10 @@ public class CameraX {
 
         for (Object surface : surfaces) {
             Log.d(debugTag, String.valueOf(surface.getClass()));
-            if (surface instanceof SurfaceView) {
+            if (surface instanceof Surface) {
+                this.surfaces.add((Surface) surface);
+                Log.d("Checks", "Added surface.");
+            } else if (surface instanceof SurfaceView) {
                 this.surfaces.add(((SurfaceView) surface).getHolder().getSurface());
             } else if (surface instanceof TextureView) {
                 this.surfaces.add(new Surface(((TextureView) surface).getSurfaceTexture()));
@@ -173,8 +176,9 @@ public class CameraX {
             builder.set(key, captureRequestOptions.get(key));
 
         // Add targets to the builder.
-        for (Surface surface : surfaces)
+        for (Surface surface : surfaces) {
             builder.addTarget(surface);
+        }
 
         // Build and return the request.
         return builder.build();
@@ -192,6 +196,7 @@ public class CameraX {
                 cameraDevice = camera;
                 CaptureRequest captureRequest = null;
                 CameraCaptureSession.StateCallback stateCallback = null;
+
 
                 try {
                     captureRequest = getCaptureRequest(camera, CameraDevice.TEMPLATE_PREVIEW);
