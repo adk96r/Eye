@@ -7,6 +7,8 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 import android.view.View;
 
+import java.util.Random;
+
 public class PersonInfoView extends View {
 
     Context context;
@@ -37,7 +39,8 @@ public class PersonInfoView extends View {
 
         outlinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         outlinePaint.setStyle(Paint.Style.STROKE);
-        outlinePaint.setColor(Color.WHITE);
+        outlinePaint.setStrokeWidth(Util.dpToPixels(context, 1));
+        outlinePaint.setColor(getRandomColor());
 
         basePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         basePaint.setStyle(Paint.Style.FILL);
@@ -119,6 +122,35 @@ public class PersonInfoView extends View {
     public void updateLOD(int LOD) {
         this.LOD = LOD;
         invalidate();
+    }
+
+    public int getRandomColor() {
+        Random random = new Random();
+
+        switch (random.nextInt(10)) {
+            case 0:
+                return Color.WHITE;
+            case 1:
+                return Color.BLACK;
+            case 2:
+                return Color.BLUE;
+            case 3:
+                return Color.CYAN;
+            case 4:
+                return Color.YELLOW;
+            case 5:
+                return Color.GREEN;
+            case 6:
+                return Color.RED;
+            case 7:
+                return Color.GRAY;
+            case 8:
+                return Color.LTGRAY;
+            case 9:
+                return Color.DKGRAY;
+            default:
+                return Color.MAGENTA;
+        }
     }
 
 

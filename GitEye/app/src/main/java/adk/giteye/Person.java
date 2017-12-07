@@ -3,6 +3,8 @@ package adk.giteye;
 import android.content.Context;
 import android.graphics.Rect;
 
+import java.io.OutputStream;
+
 /**
  * Created by ADK96r on 11/17/2017.
  * <p>
@@ -15,11 +17,11 @@ public class Person {
     public static final int UNTRACKED = 0;
     public static final int TRACKING = 1;
 
-    private static final String NAME = "ABCDEF";
-    private static final long ROLLNO = 1210314800;
-    private static final int SEM = 0;
-    private static final String BRANCH = "ABCDEF";
-    private static final float ATT = -0.0f;
+    private static final String DEFAULT_NAME = "ABCDEF";
+    private static final long DEFAULT_ROLLNO = 1210314800;
+    private static final int DEFAULT_SEM = 0;
+    private static final String DEFAULT_BRANCH = "ABCDEF";
+    private static final float DEFAULT_ATT = -0.0f;
 
     private Context context;
     private int LOD;
@@ -34,7 +36,8 @@ public class Person {
     private PersonInfoView personInfoView;
 
     public Person(Context context, Rect bounds, int LOD) {
-        init(context, NAME, ROLLNO, SEM, BRANCH, ATT, bounds, LOD);
+        init(context, DEFAULT_NAME, DEFAULT_ROLLNO, DEFAULT_SEM,
+                DEFAULT_BRANCH, DEFAULT_ATT, bounds, LOD);
     }
 
     public Person(Context context, String name, long rollNo, int sem, String branch,
@@ -82,6 +85,25 @@ public class Person {
         return branch;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setRollNo(long rollNo) {
+        this.rollNo = rollNo;
+    }
+
+    public void setAttendance(float attendance) {
+        this.attendance = attendance;
+    }
+
+    public void setBranch(String branch) {
+        this.branch = branch;
+    }
+
+    public void setSem(int sem) {
+        this.sem = sem;
+    }
 
     public int getTrackingStatus() {
         return trackingStatus;
@@ -96,7 +118,7 @@ public class Person {
      *
      * @return bounds
      */
-    public Rect getBounds() {
+    public Rect getFaceBounds() {
         return bounds;
     }
 
@@ -136,5 +158,13 @@ public class Person {
             return "Sem:" + sem + "|" + branch + "|" + attendance;
         else
             return "";
+    }
+
+    public void queryPersonInfo(OutputStream jpegStream) {
+
+        // Send the Jpeg to the server and get the person's
+        // info back.
+        new PersonQueryRequest(this).execute();
+
     }
 }

@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
+import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -16,6 +17,7 @@ import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.Face;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -30,6 +32,8 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,7 +43,6 @@ import adk.selectorswitch.SelectorSwitch;
 public class HomeActivity extends AppCompatActivity {
 
     private final static double THRESHOLD = 50;          // Max Euclidean Distance for similar faces
-    private final static int DEFAULT_OUTPUT_WIDTH = 1080;
     private final static String TAG = "Checks";
     private CameraDevice mCameraDevice;
     private Size mCameraOutputSize;
@@ -52,6 +55,7 @@ public class HomeActivity extends AppCompatActivity {
     // Dimensions
     private int screenMaxX, screenMaxY;
     private float scaleX, scaleY;
+    private int default_screen_width = 1080;
     // App state
     private boolean firstStart = true;      // Initial camera start
     private boolean recognizing = false;    // Camera preview status
@@ -117,13 +121,16 @@ public class HomeActivity extends AppCompatActivity {
         outputSurfaces = new ArrayList<>(2);
 
         // For the live preview.
+        mSurfaceView.getHolder().setFixedSize(screenMaxX, screenMaxY);
         outputSurfaces.add(mSurfaceView.getHolder().getSurface());
 
         // For extracting the image.
-        ImageReader mImageReader = ImageReader.newInstance(screenMaxX, screenMaxY, ImageFormat.YUV_420_888, 4);
-        //outputSurfaces.add(mImageReader.getSurface());
+        ImageReader mImageReader = ImageReader.newInstance(screenMaxX, screenMaxY,
+                ImageFormat.YUV_420_888, 4);
+        mImageReader.setOnImageAvailableListener(getImageAvailableListener(), null);
 
-        //mImageReader.setOnImageAvailableListener(getImageAvailableListener(), null);
+        outputSurfaces.add(mImageReader.getSurface());
+
 
         Log.d(TAG, "Done setting the output surfaces.");
     }
@@ -160,6 +167,7 @@ public class HomeActivity extends AppCompatActivity {
                     streamConfigurationMap = characteristics
                             .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
+
                     if (streamConfigurationMap == null) {
                         Log.d(TAG, "Got an empty stream configuration map.");
                         return;
@@ -171,18 +179,28 @@ public class HomeActivity extends AppCompatActivity {
                     }
 
                     for (Size size : streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)) {
-                        if (size.getHeight() == DEFAULT_OUTPUT_WIDTH) {
+                        mCameraOutputSize = size;
+                        break;
+                        /*if (size.getHeight() == screenMaxY) {
                             mCameraOutputSize = size;
                             Log.d(TAG, "Got the perfect output size for the back camera.");
                             break;
-                        }
+                        }*/
                     }
                     break;
                 }
             }
 
-            scaleX = (float) mCameraOutputSize.getWidth() / screenMaxX;
-            scaleY = (float) mCameraOutputSize.getHeight() / screenMaxY;
+            Log.d(TAG, "Camera output size : " + mCameraOutputSize.getWidth() + " "
+                    + mCameraOutputSize.getHeight());
+            Log.d(TAG, "Surface view  size : " + mSurfaceView.getWidth() + " "
+                    + mSurfaceView.getHeight());
+            Log.d(TAG, "Screen        size : " + screenMaxX + " " + screenMaxY);
+
+            scaleX = (float) screenMaxX / mCameraOutputSize.getWidth();
+            scaleY = (float) screenMaxY / mCameraOutputSize.getHeight();
+
+            Log.d(TAG, "Scales             : " + scaleX + " " + scaleY);
             Log.d(TAG, "Initialised the scales.");
 
         } catch (Exception e) {
@@ -473,7 +491,6 @@ public class HomeActivity extends AppCompatActivity {
                     bounds.right = (int) (bounds.right * scaleX);
                     bounds.bottom = (int) (bounds.bottom * scaleY);
 
-
                     oldFaceId = getPersonIdFromOldFaces(bounds);
 
                     if (oldFaceId != -1) {
@@ -526,6 +543,32 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onImageAvailable(ImageReader reader) {
 
+                // Get the latest frame and crop the faces of people in the
+                // tracking list.
+                Image frame = reader.acquireLatestImage();
+
+                // Get a YUV byte[]
+                ByteBuffer byteBuffer = frame.getPlanes()[0].getBuffer();
+                byte[] bytes = new byte[byteBuffer.remaining()];
+                byteBuffer.get(bytes);
+
+                // Create a YuvImage
+                YuvImage yuvImage = new YuvImage(bytes, ImageFormat.YUY2,
+                        frame.getWidth(), frame.getHeight(), new int[]{});
+
+                if (yuvImage == null) return;
+
+                OutputStream outputStream = null;
+
+                // Convert it into JPEG
+                for (Person person : peopleBeingTracked) {
+                    if (yuvImage.compressToJpeg(person.getFaceBounds(), 80, outputStream)) {
+                        person.queryPersonInfo(outputStream);
+                    }
+                }
+
+                frame.close();
+
             }
         };
     }
@@ -538,7 +581,7 @@ public class HomeActivity extends AppCompatActivity {
 
         for (int i = 0; i < peopleBeingTracked.size(); i++) {
 
-            deviation = getSimilarity(peopleBeingTracked.get(i).getBounds(), faceBounds);
+            deviation = getSimilarity(peopleBeingTracked.get(i).getFaceBounds(), faceBounds);
             if (deviation < THRESHOLD) {
                 id = i;
                 break;
@@ -580,7 +623,7 @@ public class HomeActivity extends AppCompatActivity {
      * @param person whose face will be drawn.
      */
     private void drawFace(Person person) {
-        Rect bounds = person.getBounds();
+        Rect bounds = person.getFaceBounds();
         View v = person.getPersonInfoView();
         v.setX(bounds.left - Util.dpToPixels(context, 4));
         v.setY(bounds.top - Util.dpToPixels(context, 4));
