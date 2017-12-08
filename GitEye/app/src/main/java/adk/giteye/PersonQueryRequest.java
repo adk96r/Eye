@@ -18,7 +18,6 @@ public class PersonQueryRequest extends AsyncTask {
         Log.d(TAG, "Initialising the request.");
         this.person = person;
 
-        
     }
 
     @Override
@@ -47,6 +46,7 @@ public class PersonQueryRequest extends AsyncTask {
     protected void onPostExecute(Object o) {
         super.onPostExecute(o);
         Log.d(TAG, "Updated the person.");
+        person.getPersonInfoView().invalidate();
     }
 
 }

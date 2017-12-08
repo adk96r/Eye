@@ -32,6 +32,7 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -558,7 +559,12 @@ public class HomeActivity extends AppCompatActivity {
 
                 if (yuvImage == null) return;
 
-                OutputStream outputStream = null;
+                OutputStream outputStream = new OutputStream() {
+                    @Override
+                    public void write(int b) throws IOException {
+
+                    }
+                };
 
                 // Convert it into JPEG
                 for (Person person : peopleBeingTracked) {
@@ -572,6 +578,7 @@ public class HomeActivity extends AppCompatActivity {
             }
         };
     }
+
 
 
     private int getPersonIdFromOldFaces(Rect faceBounds) {
