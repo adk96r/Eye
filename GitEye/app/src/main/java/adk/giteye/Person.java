@@ -2,8 +2,7 @@ package adk.giteye;
 
 import android.content.Context;
 import android.graphics.Rect;
-
-import java.io.OutputStream;
+import android.graphics.YuvImage;
 
 /**
  * Created by ADK96r on 11/17/2017.
@@ -16,6 +15,12 @@ public class Person {
 
     public static final int UNTRACKED = 0;
     public static final int TRACKING = 1;
+    public static final int NOT_QUERIED = 0;
+    public static final int QUERY_IN_PROGRESS = 1;
+    public static final int QUERY_DONE = 2;
+    public static final int QUERY_FAILED = 3;
+
+    private static final String TAG = "Checks";
 
     private static final String DEFAULT_NAME = "ABCDEF";
     private static final long DEFAULT_ROLLNO = 1210314800;
@@ -29,9 +34,11 @@ public class Person {
     private long rollNo;
     private int sem;
     private String branch;
-    private float attendance;
+    private double attendance;
     private Rect bounds;
     private int trackingStatus;
+    private int queryingStatus;
+
     private int faceBorderColor;    // For debug purposes.
     private PersonInfoView personInfoView;
 
@@ -41,12 +48,12 @@ public class Person {
     }
 
     public Person(Context context, String name, long rollNo, int sem, String branch,
-                  float attendance, Rect bounds, int LOD) {
+                  double attendance, Rect bounds, int LOD) {
         init(context, name, rollNo, sem, branch, attendance, bounds, LOD);
     }
 
     private void init(Context context, String name, long rollNo, int sem, String branch,
-                      float attendance, Rect bounds, int LOD) {
+                      double attendance, Rect bounds, int LOD) {
         this.context = context;
         this.name = name;
         this.rollNo = rollNo;
@@ -55,6 +62,7 @@ public class Person {
         this.attendance = attendance;
         this.bounds = bounds;
         this.trackingStatus = TRACKING;
+        this.queryingStatus = NOT_QUERIED;
         this.LOD = LOD;
         personInfoView = new PersonInfoView(context, bounds, this, LOD);
     }
@@ -69,40 +77,49 @@ public class Person {
         return name;
     }
 
-    public long getRollNo() {
-        return rollNo;
-    }
-
-    public int getSem() {
-        return sem;
-    }
-
-    public float getAttendance() {
-        return attendance;
-    }
-
-    public String getBranch() {
-        return branch;
-    }
-
     public void setName(String name) {
         this.name = name;
+    }
+
+    public long getRollNo() {
+        return rollNo;
     }
 
     public void setRollNo(long rollNo) {
         this.rollNo = rollNo;
     }
 
-    public void setAttendance(float attendance) {
+    public int getSem() {
+        return sem;
+    }
+
+    public void setSem(int sem) {
+        this.sem = sem;
+    }
+
+    public double getAttendance() {
+        return attendance;
+    }
+
+    public void setAttendance(double attendance) {
         this.attendance = attendance;
+    }
+
+    public String getBranch() {
+        return branch;
     }
 
     public void setBranch(String branch) {
         this.branch = branch;
     }
 
-    public void setSem(int sem) {
+    public void updateData(String name, long rollNo, int sem, String branch, double attendance) {
+        this.name = name;
+        this.rollNo = rollNo;
         this.sem = sem;
+        this.branch = branch;
+        this.attendance = attendance;
+        this.personInfoView.invalidate();
     }
 
     public int getTrackingStatus() {
@@ -111,6 +128,14 @@ public class Person {
 
     public void setTrackingStatus(int trackingStatus) {
         this.trackingStatus = trackingStatus;
+    }
+
+    public int getQueryingStatus() {
+        return queryingStatus;
+    }
+
+    public void setQueryingStatus(int queryingStatus) {
+        this.queryingStatus = queryingStatus;
     }
 
     /**
@@ -144,6 +169,10 @@ public class Person {
         this.personInfoView.updateLOD(LOD);
     }
 
+    public void updateInfoView() {
+        this.personInfoView.invalidate();
+    }
+
     public PersonInfoView getPersonInfoView() {
         return personInfoView;
     }
@@ -160,11 +189,15 @@ public class Person {
             return "";
     }
 
-    public void queryPersonInfo(OutputStream jpegStream) {
+    public void queryPersonInfo(YuvImage yuvImage) {
 
         // Send the Jpeg to the server and get the person's
         // info back.
-        new PersonQueryRequest(this).execute();
-
+        PersonQueryRequest personQueryRequest = new PersonQueryRequest(this, yuvImage);
+        if (personQueryRequest.generateBase64FromImage()) {
+            personQueryRequest.execute();
+        } else {
+            setQueryingStatus(QUERY_FAILED);
+        }
     }
 }

@@ -32,8 +32,6 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -67,11 +65,14 @@ public class HomeActivity extends AppCompatActivity {
     private TextView mDetectedTextView, mTrackingTextView;
     private RelativeLayout mFaceOverlays;
     private FloatingActionButton previewFAB;
+    private ImageReader mImageReader;
     // For Operations
     private Context context;
     private List<Person> peopleBeingTracked;   // Persons being tracked in the feed
     private int LOD;
     private List<Surface> outputSurfaces;
+    private Integer currentAcquired = 0;
+    private Integer maxAcquired = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -126,14 +127,12 @@ public class HomeActivity extends AppCompatActivity {
         outputSurfaces.add(mSurfaceView.getHolder().getSurface());
 
         // For extracting the image.
-        ImageReader mImageReader = ImageReader.newInstance(screenMaxX, screenMaxY,
-                ImageFormat.YUV_420_888, 4);
+        mImageReader = ImageReader.newInstance(screenMaxX, screenMaxY,
+                ImageFormat.YUV_420_888, maxAcquired);
         mImageReader.setOnImageAvailableListener(getImageAvailableListener(), null);
-
         outputSurfaces.add(mImageReader.getSurface());
 
-
-        Log.d(TAG, "Done setting the output surfaces.");
+        //Log.d(TAG, "Done setting the output surfaces.");
     }
 
     /**
@@ -249,6 +248,9 @@ public class HomeActivity extends AppCompatActivity {
                 } catch (CameraAccessException exception) {
                     Log.d(TAG, "CameraAccessException while creating the capture session - "
                             + exception.getMessage());
+                } catch (Exception e) {
+                    Log.d(TAG, "Exception while creating the capture session - "
+                            + e.getMessage());
                 }
             }
 
@@ -544,42 +546,75 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onImageAvailable(ImageReader reader) {
 
-                // Get the latest frame and crop the faces of people in the
-                // tracking list.
-                Image frame = reader.acquireLatestImage();
+                Image frame = null;
 
-                // Get a YUV byte[]
-                ByteBuffer byteBuffer = frame.getPlanes()[0].getBuffer();
-                byte[] bytes = new byte[byteBuffer.remaining()];
-                byteBuffer.get(bytes);
+                //synchronized (currentAcquired) {
+                //    if (currentAcquired == maxAcquired) {
+                //        return;
+                //    } else {
+                //        currentAcquired += 1;
+                frame = reader.acquireNextImage();
+                //    }
 
-                // Create a YuvImage
-                YuvImage yuvImage = new YuvImage(bytes, ImageFormat.YUY2,
-                        frame.getWidth(), frame.getHeight(), new int[]{});
+                try {
 
-                if (yuvImage == null) return;
+                    YuvImage yuvImage = null;
 
-                OutputStream outputStream = new OutputStream() {
-                    @Override
-                    public void write(int b) throws IOException {
+                    // Get a YUV byte[]
+                    ByteBuffer byteBuffer = frame.getPlanes()[0].getBuffer();
+                    byte[] bytes = new byte[byteBuffer.remaining()];
+                    byteBuffer.get(bytes);
 
+                    // Create a YuvImage
+                    yuvImage = new YuvImage(bytes, ImageFormat.YUY2,
+                            frame.getWidth(), frame.getHeight(), null);
+
+                    if (yuvImage == null) return;
+
+                    PersonQueryRequest request;
+
+                    // Send this image to all the people, each one
+                    // of whom will crop their faces and query the
+                    // details. Query only if the details have not
+                    // already been queried or are still under the
+                    // process.
+                    for (Person person : peopleBeingTracked) {
+
+                        /*
+                        switch (person.getQueryingStatus()) {
+                            case Person.NOT_QUERIED:
+                                Log.d(TAG, "Not Queried");
+                                break;
+                            case Person.QUERY_IN_PROGRESS:
+                                Log.d(TAG, "Queried in progress");
+                                break;
+                            case Person.QUERY_DONE:
+                                Log.d(TAG, "Queried");
+                                break;
+                            case Person.QUERY_FAILED:
+                                Log.d(TAG, "Failed");
+                                break;
+                        }
+                        */
+
+                        if (person.getQueryingStatus() == Person.NOT_QUERIED ||
+                                person.getQueryingStatus() == Person.QUERY_FAILED) {
+                            person.queryPersonInfo(yuvImage);
+                        }
                     }
-                };
 
-                // Convert it into JPEG
-                for (Person person : peopleBeingTracked) {
-                    if (yuvImage.compressToJpeg(person.getFaceBounds(), 80, outputStream)) {
-                        person.queryPersonInfo(outputStream);
-                    }
+                } catch (Exception e) {
+                    Log.d(TAG, "Exception in OnImageAvailableListener - " + e.getMessage());
+                } finally {
+                    //          currentAcquired -= 1;
+                    if (frame != null) frame.close();
                 }
-
-                frame.close();
-
             }
+
+
+            //}
         };
     }
-
-
 
     private int getPersonIdFromOldFaces(Rect faceBounds) {
 
@@ -655,7 +690,9 @@ public class HomeActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        previewFAB.performClick();
+        if (recognizing) {
+            previewFAB.performClick();
+        }
     }
 
 }

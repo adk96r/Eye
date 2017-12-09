@@ -153,5 +153,8 @@ public class PersonInfoView extends View {
         }
     }
 
-
+    @Override
+    synchronized public void invalidate() {
+        super.invalidate();
+    }
 }
