@@ -1,22 +1,20 @@
 package adk.giteye;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
+import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 
 import java.util.Random;
 
 public class PersonInfoView extends View {
 
-    Context context;
-    Person person;
-    Rect bounds;
-    Paint outlinePaint;
-    Paint basePaint;
-    Paint textPaint;
+    private static final String TAG = "Checks";
     int LOD;
     int radiusPixels;
     int gap;
@@ -25,14 +23,27 @@ public class PersonInfoView extends View {
     int textPadding;
     int baseStartHeight;
     int baseHeight;
+    private Context context;
+    private Activity activity;
+    private Person person;
+    private Rect bounds;
+    private Paint outlinePaint;
+    private Paint basePaint;
+    private Paint textPaint;
+    private boolean dialogsAllowed;
+    private PersonInfoView ref;
 
-    public PersonInfoView(Context context, Rect bounds, Person person, int LOD) {
+    public PersonInfoView(Context context, Rect bounds, Person person, int LOD, Activity activity) {
         super(context);
         this.context = context;
         this.bounds = bounds;
         this.person = person;
         this.LOD = LOD;
+        this.activity = activity;
+        this.ref = this;
         setupInfoView();
+        setOnTouchListener(getOnTouchListener());
+        allowDialogs(true);
     }
 
     private void setupInfoView() {
@@ -76,7 +87,6 @@ public class PersonInfoView extends View {
         width += radiusPixels + bounds.width() + radiusPixels;
         height += bounds.height() + baseHeight + 2 * radiusPixels;
         baseStartHeight = bounds.height() + gap;
-
 
         setMeasuredDimension(width, height);
     }
@@ -153,8 +163,27 @@ public class PersonInfoView extends View {
         }
     }
 
-    @Override
-    synchronized public void invalidate() {
-        super.invalidate();
+    public void allowDialogs(boolean allow){
+        this.dialogsAllowed = allow;
     }
+
+    private OnTouchListener getOnTouchListener() {
+
+        return new OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+
+                if (dialogsAllowed) {
+
+                    Log.d(TAG, "Touched on a person");
+                    PersonDialog personDialog = new PersonDialog();
+                    personDialog.setData(context, person, ref);
+                    personDialog.show(activity.getFragmentManager(), "person");
+
+                }
+                return true;
+            }
+        };
+    }
+
 }

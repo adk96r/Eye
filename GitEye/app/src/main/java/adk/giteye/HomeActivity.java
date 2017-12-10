@@ -2,6 +2,7 @@ package adk.giteye;
 
 import android.Manifest;
 import android.animation.Animator;
+import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
@@ -31,6 +32,7 @@ import android.view.SurfaceView;
 import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -39,7 +41,7 @@ import java.util.List;
 import adk.selectorswitch.SelectorSwitch;
 
 
-public class HomeActivity extends AppCompatActivity {
+public class HomeActivity extends AppCompatActivity implements ActivityCompat.OnRequestPermissionsResultCallback {
 
     private final static double THRESHOLD = 50;          // Max Euclidean Distance for similar faces
     private final static String TAG = "Checks";
@@ -73,6 +75,8 @@ public class HomeActivity extends AppCompatActivity {
     private List<Surface> outputSurfaces;
     private Integer currentAcquired = 0;
     private Integer maxAcquired = 1;
+    private Activity activity;
+    private boolean status_OK;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +100,7 @@ public class HomeActivity extends AppCompatActivity {
         mTrackingTextView = (TextView) findViewById(R.id.trackingTextView);
         mSelectorSwitch = (SelectorSwitch) findViewById(R.id.LODSwitch);
         previewFAB = (FloatingActionButton) findViewById(R.id.startPreviewBtn);
+        activity = this;
 
         mSurfaceView.post(new Runnable() {
             @Override
@@ -104,7 +109,7 @@ public class HomeActivity extends AppCompatActivity {
                 screenMaxY = mSurfaceView.getHeight();
                 setupInitialState();
                 setupOutputSurfaces();
-                setupCamera();
+                status_OK = setupCamera();
             }
         });
     }
@@ -114,8 +119,15 @@ public class HomeActivity extends AppCompatActivity {
         previewFAB.setOnClickListener(getPreviewFABListener());
         peopleBeingTracked = new ArrayList<>();
         mSelectorSwitch.setOnClickListener(getSelectorSwitchOnClickListener());
-
         Log.d(TAG, "Initial setup done.");
+
+        mFaceOverlays.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d(TAG, "Clicked the introView");
+            }
+        });
+
     }
 
     private void setupOutputSurfaces() {
@@ -141,7 +153,7 @@ public class HomeActivity extends AppCompatActivity {
      * Hence, mCameraDevice, mCameraOutputSize, scales, mCaptureSession
      * and mCaptureRequest are initialised.
      */
-    private void setupCamera() {
+    private boolean setupCamera() {
 
         CameraManager mCameraManger = (CameraManager) getSystemService(CAMERA_SERVICE);
         mCaptureSessionStateCallback = getCameraCaptureSessionStateCallback();
@@ -170,12 +182,12 @@ public class HomeActivity extends AppCompatActivity {
 
                     if (streamConfigurationMap == null) {
                         Log.d(TAG, "Got an empty stream configuration map.");
-                        return;
+                        return false;
                     }
 
                     if (streamConfigurationMap.getOutputSizes(ImageFormat.JPEG).length == 0) {
                         Log.d(TAG, "Output sizes array is of length 0.");
-                        return;
+                        return false;
                     }
 
                     for (Size size : streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)) {
@@ -205,7 +217,7 @@ public class HomeActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.d(TAG, "Exception while getting the camera IDs - " + e.getMessage());
-            return;
+            return false;
         }
 
 
@@ -220,17 +232,28 @@ public class HomeActivity extends AppCompatActivity {
                 //                                          int[] grantResults)
                 // to handle the case where the user grants the permission. See the documentation
                 // for ActivityCompat#requestPermissions for more details.
-                return;
+                String[] permissions = new String[]{"android.permission.CAMERA"};
+
+                int requestCode = 301;
+
+                activity.requestPermissions(permissions, requestCode);
+                return false;
+            } else {
+
             }
+
             mCameraManger.openCamera(mCameraId, getCameraDeviceStateCallback(), null);
         } catch (CameraAccessException e) {
             Log.d(TAG, "CameraAccessException while opening the camera - "
                     + e.getMessage());
+            return false;
         } catch (Exception e) {
             Log.d(TAG, "Exception while opening the camera - "
                     + e.getMessage());
+            return false;
         }
 
+        return true;
     }
 
     private CameraDevice.StateCallback getCameraDeviceStateCallback() {
@@ -365,6 +388,12 @@ public class HomeActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
+                if (!status_OK) {
+                    Toast.makeText(context, "Internal error : Camera setup failed.",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 // FAB tapped. So change recongition status.
                 recognizing = !recognizing;
 
@@ -376,7 +405,28 @@ public class HomeActivity extends AppCompatActivity {
                         introHintView.animate()
                                 .alpha(recognizing ? 0.0f : 1.0f)
                                 .setDuration(400)
-                                .start();
+                                .setListener(new Animator.AnimatorListener() {
+                                    @Override
+                                    public void onAnimationStart(Animator animation) {
+
+                                    }
+
+                                    @Override
+                                    public void onAnimationEnd(Animator animation) {
+                                        introHintView.setVisibility(recognizing ?
+                                                View.GONE : View.VISIBLE);
+                                    }
+
+                                    @Override
+                                    public void onAnimationCancel(Animator animation) {
+
+                                    }
+
+                                    @Override
+                                    public void onAnimationRepeat(Animator animation) {
+
+                                    }
+                                }).start();
                     }
 
                     @Override
@@ -511,7 +561,7 @@ public class HomeActivity extends AppCompatActivity {
                         // Either a new face (or) Face has displaced proportionaly between
                         // the two frames. So create a new Person which will automatically
                         // query it.
-                        p = new Person(context, bounds, LOD);
+                        p = new Person(context, bounds, LOD, activity);
                         peopleBeingTracked.add(p);
                     }
                 }
@@ -695,4 +745,17 @@ public class HomeActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        for (int i = 0; i < permissions.length; i++) {
+            if (permissions[i].equals("android.permission.CAMERA")) {
+                if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                    status_OK = true;
+                    setupCamera();
+                }
+            }
+        }
+    }
 }

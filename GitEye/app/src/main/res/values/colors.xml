@@ -11,4 +11,5 @@
     <color name="lowColor">#BBDEFB</color>
     <color name="midColor">#2196F3</color>
     <color name="highColor">#0D47A1</color>
+    <color name="transparent">#00000000</color>
 </resources>

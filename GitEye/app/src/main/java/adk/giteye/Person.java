@@ -1,5 +1,6 @@
 package adk.giteye;
 
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
@@ -24,9 +25,9 @@ public class Person {
 
     private static final String DEFAULT_NAME = "ABCDEF";
     private static final long DEFAULT_ROLLNO = 1210314800;
-    private static final int DEFAULT_SEM = 0;
+    private static final int DEFAULT_SEM = 1;
     private static final String DEFAULT_BRANCH = "ABCDEF";
-    private static final float DEFAULT_ATT = -0.0f;
+    private static final float DEFAULT_ATT = 0.0f;
 
     private Context context;
     private int LOD;
@@ -38,22 +39,24 @@ public class Person {
     private Rect bounds;
     private int trackingStatus;
     private int queryingStatus;
+    private Activity activity;
 
     private int faceBorderColor;    // For debug purposes.
     private PersonInfoView personInfoView;
 
-    public Person(Context context, Rect bounds, int LOD) {
+    public Person(Context context, Rect bounds, int LOD, Activity activity) {
         init(context, DEFAULT_NAME, DEFAULT_ROLLNO, DEFAULT_SEM,
-                DEFAULT_BRANCH, DEFAULT_ATT, bounds, LOD);
+                DEFAULT_BRANCH, DEFAULT_ATT, bounds, LOD, activity);
     }
 
     public Person(Context context, String name, long rollNo, int sem, String branch,
-                  double attendance, Rect bounds, int LOD) {
-        init(context, name, rollNo, sem, branch, attendance, bounds, LOD);
+                  double attendance, Rect bounds, int LOD, Activity activity) {
+        init(context, name, rollNo, sem, branch, attendance, bounds, LOD, activity);
     }
 
     private void init(Context context, String name, long rollNo, int sem, String branch,
-                      double attendance, Rect bounds, int LOD) {
+                      double attendance, Rect bounds, int LOD,
+                      Activity activity) {
         this.context = context;
         this.name = name;
         this.rollNo = rollNo;
@@ -64,7 +67,8 @@ public class Person {
         this.trackingStatus = TRACKING;
         this.queryingStatus = NOT_QUERIED;
         this.LOD = LOD;
-        personInfoView = new PersonInfoView(context, bounds, this, LOD);
+        this.activity = activity;
+        personInfoView = new PersonInfoView(context, bounds, this, LOD, activity);
     }
 
 
@@ -195,7 +199,8 @@ public class Person {
         // info back.
         PersonQueryRequest personQueryRequest = new PersonQueryRequest(this, yuvImage);
         if (personQueryRequest.generateBase64FromImage()) {
-            personQueryRequest.execute();
+            setQueryingStatus(QUERY_DONE);
+            //personQueryRequest.execute();
         } else {
             setQueryingStatus(QUERY_FAILED);
         }
