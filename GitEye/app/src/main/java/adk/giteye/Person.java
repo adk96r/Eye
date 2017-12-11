@@ -199,8 +199,7 @@ public class Person {
         // info back.
         PersonQueryRequest personQueryRequest = new PersonQueryRequest(this, yuvImage);
         if (personQueryRequest.generateBase64FromImage()) {
-            setQueryingStatus(QUERY_DONE);
-            //personQueryRequest.execute();
+            personQueryRequest.execute();
         } else {
             setQueryingStatus(QUERY_FAILED);
         }

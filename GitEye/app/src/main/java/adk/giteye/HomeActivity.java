@@ -78,6 +78,14 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
     private Activity activity;
     private boolean status_OK;
 
+    /**
+     * Starts the activity and gets the references to the
+     * inflated UI components; also calculates the screen
+     * dimensions, sets up the initial state of the app
+     * and the camera.
+     *
+     * @param savedInstanceState
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -114,22 +122,26 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         });
     }
 
+    /**
+     * Initial state is -
+     * -   Visible hint screen.
+     * -   Empty tracking list.
+     */
     private void setupInitialState() {
         introHintView.setVisibility(View.VISIBLE);
         previewFAB.setOnClickListener(getPreviewFABListener());
         peopleBeingTracked = new ArrayList<>();
         mSelectorSwitch.setOnClickListener(getSelectorSwitchOnClickListener());
         Log.d(TAG, "Initial setup done.");
-
-        mFaceOverlays.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Log.d(TAG, "Clicked the introView");
-            }
-        });
-
     }
 
+    /**
+     * Initialises the output surfaces for the camera's preview.
+     * There will be two output surfaces -
+     * 1) mSurfaceView : The surface to just show the preview frame.
+     * 2) mImageReader : The surface to get the actual pixel image
+     * data of the preview frame.
+     */
     private void setupOutputSurfaces() {
 
         outputSurfaces = new ArrayList<>(2);
@@ -143,15 +155,19 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
                 ImageFormat.YUV_420_888, maxAcquired);
         mImageReader.setOnImageAvailableListener(getImageAvailableListener(), null);
         outputSurfaces.add(mImageReader.getSurface());
-
-        //Log.d(TAG, "Done setting the output surfaces.");
     }
 
     /**
-     * Gets the back camera's details and opens it and creates a capture
-     * session with a repeating request built using the PREVIEW template.
-     * Hence, mCameraDevice, mCameraOutputSize, scales, mCaptureSession
-     * and mCaptureRequest are initialised.
+     * Sets up the camera ( doesn't start it though ). Initialises -
+     * 1) mCameraManager : Used to get the camera ID list and their specs.
+     * 2) mCaptureSessionCallback : Callback used while creating a capture session.
+     * 3) mCaptureCallback : Callback used to handle the capture results.
+     * 4) mCameraOutputSize : Output dimensions of the camera, used for scaling.
+     * 5) scaleX and scaleY : For rescaling the face overlays.
+     * <p>
+     * Finally opens the camera.
+     *
+     * @return true if setup is successful; false if setup fails at any stage.
      */
     private boolean setupCamera() {
 
@@ -193,11 +209,6 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
                     for (Size size : streamConfigurationMap.getOutputSizes(ImageFormat.JPEG)) {
                         mCameraOutputSize = size;
                         break;
-                        /*if (size.getHeight() == screenMaxY) {
-                            mCameraOutputSize = size;
-                            Log.d(TAG, "Got the perfect output size for the back camera.");
-                            break;
-                        }*/
                     }
                     break;
                 }
@@ -224,22 +235,12 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         // Open the camera and initialise the mCameraDevice.
         try {
 
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                // TODO: Consider calling
-                //    ActivityCompat#requestPermissions
-                // here to request the missing permissions, and then overriding
-                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                //                                          int[] grantResults)
-                // to handle the case where the user grants the permission. See the documentation
-                // for ActivityCompat#requestPermissions for more details.
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
+                    != PackageManager.PERMISSION_GRANTED) {
+
                 String[] permissions = new String[]{"android.permission.CAMERA"};
-
-                int requestCode = 301;
-
-                activity.requestPermissions(permissions, requestCode);
+                activity.requestPermissions(permissions, 301);
                 return false;
-            } else {
-
             }
 
             mCameraManger.openCamera(mCameraId, getCameraDeviceStateCallback(), null);
@@ -256,6 +257,12 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         return true;
     }
 
+    /**
+     * Returns a callback to handle operations while opening a camera
+     * device.
+     *
+     * @return CameraDevice.StateCallback
+     */
     private CameraDevice.StateCallback getCameraDeviceStateCallback() {
         return new CameraDevice.StateCallback() {
             @Override
@@ -289,6 +296,12 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         };
     }
 
+    /**
+     * Returns a simple callback to handle capture sessions states.
+     * The session created is referenced using mCameraCaptureSession.
+     *
+     * @return CameraCaptureCallback.StateCallback
+     */
     private CameraCaptureSession.StateCallback getCameraCaptureSessionStateCallback() {
         return new CameraCaptureSession.StateCallback() {
             @Override
@@ -304,6 +317,13 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         };
     }
 
+    /**
+     * Creates and returns a capture request used while creating setting a repeating
+     * request using the mCaptureSession. The request is for a live preview with full
+     * face detection support.
+     *
+     * @return CaptureRequest
+     */
     private CaptureRequest getCaptureRequest() {
 
         CaptureRequest.Builder builder = null;
@@ -329,6 +349,7 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         else return builder.build();
     }
 
+    // Camera Operations.
     private void startCameraPreview() {
 
         try {
@@ -382,6 +403,7 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
 
     }
 
+    // UI Component listeners
     private FloatingActionButton.OnClickListener getPreviewFABListener() {
 
         return new View.OnClickListener() {
@@ -497,7 +519,7 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
     }
 
     /**
-     * The main ting
+     * The main ting.
      *
      * @return CaptureCallback
      */
@@ -588,6 +610,11 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
 
     /**
      * Also an importatn ting
+     * <p>
+     * Returns an ImageReader.OnImageAvailableListener that reads the latest available frame
+     * and generates a YuvImage instance from the pixel data of the frame. This instance is
+     * then passed to the people being tracked (but not yet known,i.e, whose details haven't
+     * been queried yet).
      *
      * @return ImageReader.OnImageAvailableListener
      */
@@ -596,15 +623,7 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
             @Override
             public void onImageAvailable(ImageReader reader) {
 
-                Image frame = null;
-
-                //synchronized (currentAcquired) {
-                //    if (currentAcquired == maxAcquired) {
-                //        return;
-                //    } else {
-                //        currentAcquired += 1;
-                frame = reader.acquireNextImage();
-                //    }
+                Image frame = reader.acquireNextImage();
 
                 try {
 
@@ -621,32 +640,9 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
 
                     if (yuvImage == null) return;
 
-                    PersonQueryRequest request;
-
-                    // Send this image to all the people, each one
-                    // of whom will crop their faces and query the
-                    // details. Query only if the details have not
-                    // already been queried or are still under the
-                    // process.
+                    // Send this image to the people whose details are not yet known, each one
+                    // of whom will crop their faces and query the details.
                     for (Person person : peopleBeingTracked) {
-
-                        /*
-                        switch (person.getQueryingStatus()) {
-                            case Person.NOT_QUERIED:
-                                Log.d(TAG, "Not Queried");
-                                break;
-                            case Person.QUERY_IN_PROGRESS:
-                                Log.d(TAG, "Queried in progress");
-                                break;
-                            case Person.QUERY_DONE:
-                                Log.d(TAG, "Queried");
-                                break;
-                            case Person.QUERY_FAILED:
-                                Log.d(TAG, "Failed");
-                                break;
-                        }
-                        */
-
                         if (person.getQueryingStatus() == Person.NOT_QUERIED ||
                                 person.getQueryingStatus() == Person.QUERY_FAILED) {
                             person.queryPersonInfo(yuvImage);
@@ -656,7 +652,7 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
                 } catch (Exception e) {
                     Log.d(TAG, "Exception in OnImageAvailableListener - " + e.getMessage());
                 } finally {
-                    //          currentAcquired -= 1;
+                    // Don't forget to close the frame.
                     if (frame != null) frame.close();
                 }
             }
@@ -666,6 +662,13 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         };
     }
 
+    /**
+     * Returns the id ( in the peropleBeingTracked array ) of a person ( in the old frame )
+     * who could be having the given faceBounds in the new frame.
+     *
+     * @param faceBounds
+     * @return id if the person has been found; else -1.
+     */
     private int getPersonIdFromOldFaces(Rect faceBounds) {
 
         int id = -1;
@@ -684,13 +687,13 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
     }
 
     /**
-     * Returns the euclidean distance beween the centres of the two face borders; smaller distances
-     * would infer that the face has shifted slightly across the frames. Larger distance could mean
-     * a different face.
+     * Returns the euclidean distance between the centres of the two face borders.
+     * Smaller distances would infer that the face has shifted slightly over the frame.
+     * Larger distance could mean a completely different face.
      *
      * @param oldFaceBounds Face border in the previous preview frame.
      * @param newFaceBounds Face border in the current preview frame.
-     * @return similarity
+     * @return similarity : a double value.
      */
     private double getSimilarity(Rect oldFaceBounds, Rect newFaceBounds) {
 
@@ -709,8 +712,7 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
     }
 
     /**
-     * Draws a box around the person's face and shows the person's details below
-     * the box.
+     * Draws the PersonInfoView associated with the person.
      *
      * @param person whose face will be drawn.
      */
@@ -721,7 +723,6 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
         v.setY(bounds.top - Util.dpToPixels(context, 4));
         mFaceOverlays.addView(v);
     }
-
 
     /* Activity lifecycle */
 

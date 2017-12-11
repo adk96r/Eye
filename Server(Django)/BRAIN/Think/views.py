@@ -12,12 +12,18 @@ import json
 
 def getPersonInfo(request):
 
+	try:
+		data = request.POST
+		print (data["ImageData"])
+
+	except Exception as e:
+		print ("Failed - " + str(e))
 	person = {
-	'Name' : 'jaffa',
-	'Sem'  : '8',
+	'Name' : 'Student Name',
+	'Sem'  : '10',
 	'Branch' : 'CSE',
-	'Rollno' : '1210314802',
-	'Att' : float(85.0)
+	'Rollno' : '121',
+	'Att' : float(100.0)
 	}
 
 	return HttpResponse(json.dumps(person))

@@ -8,15 +8,19 @@ import android.util.Log;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 
 /**
  * Created by Adu on 12/6/2017.
@@ -67,34 +71,35 @@ public class PersonQueryRequest extends AsyncTask<Void, Void, Void> {
 
     private boolean initConnection() {
 
-        URL url = null;
 
         try {
-            url = new URL(SERVER_LINK);
-        } catch (MalformedURLException e) {
-            Log.d(TAG, "Malformed URL - " + e.getMessage());
-            status = false;
-        } catch (Exception e) {
-            Log.d(TAG, "Exception in Async Task - " + e.getMessage());
-            status = false;
-        }
 
-        if (!status) return false;
-
-        try {
+            URL url = new URL(SERVER_LINK);
             urlConnection = (HttpURLConnection) url.openConnection();
-            urlConnection.setDoOutput(true);
-            OutputStream outputStream = urlConnection.getOutputStream();
-            outputStream.write(jpeg);
+            urlConnection.setRequestMethod("POST");
+
+            OutputStream outputStream = new BufferedOutputStream(urlConnection.getOutputStream());
+            BufferedWriter writer = new BufferedWriter(
+                    new OutputStreamWriter(outputStream, "UTF-8"));
+
+            writer.write("ImageData" + "=" + URLEncoder.encode(b64, "UTF-8"));
+            writer.flush();
+            writer.close();
+            urlConnection.connect();
+
             this.inputStream = urlConnection.getInputStream();
+
+        } catch (MalformedURLException e) {
+            Log.d(TAG, "Malformed URL Exception while connecting to server - " + e.getMessage());
+            e.printStackTrace();
+            status = false;
         } catch (IOException e) {
-            Log.d(TAG, "IOException while requesting details - " + e.getMessage());
+            Log.d(TAG, "IO Exception while connecting to server - " + e.getMessage());
+            e.printStackTrace();
             status = false;
         } catch (Exception e) {
-            Log.d(TAG, "Exception while requesting details - " + e.getMessage());
+            Log.d(TAG, "Exception while connecting to server - " + e.getMessage());
             status = false;
-        } finally {
-            urlConnection.disconnect();
         }
 
         if (!status) return false;
