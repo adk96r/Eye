@@ -12,18 +12,44 @@ import json
 
 def getPersonInfo(request):
 
+	
 	try:
 		data = request.POST
-		print (data["ImageData"])
+		b64Image = data["ImageData"]
+		print ("Obtained an image.")
+
+		rollno = getPersonFromImage(b64Image)
+		data = getPersonDetails(rollno)
+		return HttpResponse(json.dumps(data))
+
 
 	except Exception as e:
 		print ("Failed - " + str(e))
-	person = {
-	'Name' : 'Student Name',
-	'Sem'  : '10',
-	'Branch' : 'CSE',
-	'Rollno' : '121',
-	'Att' : float(100.0)
-	}
+
 
 	return HttpResponse(json.dumps(person))
+
+def getPersonFromImage(b64Image):
+
+	# Face recognition
+	rollno = 1210314802
+
+	return rollno
+
+def getPersonDetails(rollno):
+
+	# Return all details of the
+	# person with the given rollno
+	# in form of a dict
+
+
+	person = {
+	'Name' : 'cvbnm',
+	'Sem'  : '100',
+	'Branch' : 'CSE',
+	'Rollno' : '1',
+	'Att' : float(110.0)
+	}
+
+
+	return person
