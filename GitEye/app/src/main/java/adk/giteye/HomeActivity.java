@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.ImageFormat;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
@@ -33,6 +34,8 @@ import android.view.View;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.android.gms.vision.CameraSource;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -519,6 +522,31 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
     }
 
     /**
+     * Updated Version...
+     */
+    CameraSource getCameraSource() {
+        Point size = new Point();
+        getWindowManager().getDefaultDisplay().getSize(size);
+
+        return new CameraSource.Builder(context, getFaceDetector())
+                .setAutoFocusEnabled(true)
+                .setFacing(CameraSource.CAMERA_FACING_BACK)
+                .setRequestedFps(30)
+                .setRequestedPreviewSize(size.x, size.y)
+                .build();
+
+    }
+
+    FaceDetector getFaceDetector() {
+        return new FaceDetector(getFaceProcessor());
+    }
+
+    FaceProcessor getFaceProcessor(){
+        return new FaceProcessor();
+    }
+
+
+    /**
      * The main ting.
      *
      * @return CaptureCallback
@@ -730,12 +758,6 @@ public class HomeActivity extends AppCompatActivity implements ActivityCompat.On
     protected void onDestroy() {
         super.onDestroy();
         stopCameraPreview();
-    }
-
-    @Override
-    protected void onRestart() {
-        super.onPause();
-
     }
 
     @Override
