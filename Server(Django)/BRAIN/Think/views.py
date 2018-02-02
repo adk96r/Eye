@@ -4,6 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 import face_recognition
+# before the feature
 
 # Receives the request which has the image as base 64 and calls
 # the method getPersonFromImage to get the person's roll number.
