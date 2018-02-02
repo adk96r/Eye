@@ -4,7 +4,6 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 import face_recognition
-import base64
 
 # Receives the request which has the image as base 64 and calls
 # the method getPersonFromImage to get the person's roll number.
@@ -67,43 +66,55 @@ def getPersonDetails(rollno):
 
 # Return the csv as a list.
 def getKnownEncodings():
-	try:
+
 	encodings = list()
-	with open('C:\\Users\\Pradeep Chandra\\Downloads\\encodings_128.csv', 'r') as c:
-		reader = csv.reader(c, delimiter=';', dialect='excel')
-		for r in reader:
-			#rolls.append(int(r[0]))
-			encodings.append([float(r[x]) for x in range(1, len(r))])
+	try:
+		with open('Encodings.csv', 'r') as c:
+			reader = csv.reader(c, delimiter=';', dialect='excel')
+			for r in reader:
+				#rolls.append(int(r[0]))
+				encodings.append([float(r[x]) for x in range(1, len(r))])
+	except Exception as e:
+		print ("Exception in getKnownEncodings " + e)
+
 	return encodings
-	except IndexError:
-		print("IndexError Handled")
+
 
 # Take a b64 file and convert it and save it as <imageFileName>.jpg.
 def convertB64toImageAndSave(b64_string, image_file_name):
-
-	#imgdata takes the decoded base64 string into imgdata
-	#image_file_name is the file name where the image is stored
-	#imgdata is returned
-	imgdata = base64.b64decode(b64_string)
-	image_file_name = 'some_image.jpg'
-	with open('image_file_name','wb') as fo:
-		fo.write(imgdata)
-	return imgdata
-
+	try:
+		#imgdata takes the decoded base64 string into imgdata
+		#image_file_name is the file name where the image is stored
+		#imgdata is returned
+		imgdata = base64.b64decode(b64_string)
+		image_file_name = 'some_image.jpg'
+		with open('image_file_name','wb') as fo:
+			fo.write(imgdata)
+		return imgdata
+	except Exception as e:
+		print ("Exception in convertB64toImageAndSave " + e)
+	return None
 
 # Open the given image file and extract the 128 encodings and return them.
 def getEncodingsFromImageFile(image_file_name):
 
-	#Just loading the image and encoding the Unknown image values
-	unknown_image = face_recognition.load_image_file("image_file_name")
-	unknown_encodings = face_recognition.face_encodings(unknown_image)[0]
-	return unknown_encodings
+	try:
+		#Just loading the image and encoding the Unknown image values
+		unknown_image = face_recognition.load_image_file("image_file_name")
+		unknown_encodings = face_recognition.face_encodings(unknown_image)[0]
+		return unknown_encodings
+	except Exception as e:
+		print ("Exception in getEncodingsFromImageFile " + e)
+	return None
 
 # Compare the face with the given list of encodings and return the possible
 # entry in the known encodings. Return -1 if nothing's been found.
 def compare(known_encodings, unknown_encodings):
-	results = fr.compare_faces([known_encodings], unknown_encodings, tolerance = tol)
-	for m in range(0, len(results)):
-		if results[m]:
-			return m
+	try:
+		results = fr.compare_faces([known_encodings], unknown_encodings, tolerance = tol)
+		for m in range(0, len(results)):
+			if results[m]:
+				return m
+	except Exception as e:
+		print ("Exception in compare " + e)
 	return -1
