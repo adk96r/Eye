@@ -4,6 +4,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 import json
 import face_recognition
+import base64
 
 # Receives the request which has the image as base 64 and calls
 # the method getPersonFromImage to get the person's roll number.
@@ -66,13 +67,16 @@ def getPersonDetails(rollno):
 
 # Return the csv as a list.
 def getKnownEncodings():
+	try:
 	encodings = list()
-	with open('Encodings.csv', 'r') as c:
+	with open('C:\\Users\\Pradeep Chandra\\Downloads\\encodings_128.csv', 'r') as c:
 		reader = csv.reader(c, delimiter=';', dialect='excel')
 		for r in reader:
 			#rolls.append(int(r[0]))
 			encodings.append([float(r[x]) for x in range(1, len(r))])
 	return encodings
+	except IndexError:
+		print("IndexError Handled")
 
 # Take a b64 file and convert it and save it as <imageFileName>.jpg.
 def convertB64toImageAndSave(b64_string, image_file_name):
