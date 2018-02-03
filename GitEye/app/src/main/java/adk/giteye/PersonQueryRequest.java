@@ -29,7 +29,7 @@ import java.net.URLEncoder;
 public class PersonQueryRequest extends AsyncTask<Void, Void, Void> {
 
     private static final String TAG = "Checks";
-    private static final String SERVER_LINK = "http://192.168.0.102:9000/think/";
+    private static final String SERVER_LINK = "http://192.168.1.6:8000/think/";
     private Person person;
     private YuvImage yuvImage;
     private String b64;

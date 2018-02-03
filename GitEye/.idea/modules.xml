@@ -3,7 +3,10 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/GitEye.iml" filepath="$PROJECT_DIR$/GitEye.iml" />
+      <module fileurl="file://$PROJECT_DIR$/GitEye.iml" filepath="$PROJECT_DIR$/GitEye.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/selector-switch/selector-switch.iml" filepath="$PROJECT_DIR$/selector-switch/selector-switch.iml" />
       <module fileurl="file://$PROJECT_DIR$/selector-switch/selector-switch.iml" filepath="$PROJECT_DIR$/selector-switch/selector-switch.iml" />
     </modules>
   </component>
