@@ -1,0 +1,100 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="adk.giteye.HomeActivity">
+
+    <SurfaceView
+        android:id="@+id/surfaceView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <RelativeLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="bottom|start"
+        android:padding="4dp">
+
+        <TextView
+            android:id="@+id/detectedTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/trackingTextView"
+            android:text="Detected: "
+            android:textColor="#fff" />
+
+        <TextView
+            android:id="@+id/trackingTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:text="Tracking: "
+            android:textColor="#fff" />
+
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:id="@+id/facesOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/transparent"/>
+
+    <android.support.design.widget.FloatingActionButton
+        android:id="@+id/startPreviewBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center|center"
+        android:layout_margin="16dp"
+        android:background="#ffdddd"
+        android:scaleType="center"
+        android:scaleX="3"
+        android:scaleY="3"
+        android:src="@drawable/ic_play_arrow_black_24dp"
+        app:backgroundTint="#ffffff"
+        app:fabSize="normal" />
+
+    <adk.selectorswitch.SelectorSwitch
+        android:id="@+id/LODSwitch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        app:colors="@array/colors"
+        app:modes="@array/modes" />
+
+    <RelativeLayout
+        android:id="@+id/introHint"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/colorAccent"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/hint"
+            android:layout_centerHorizontal="true"
+            android:background="@color/colorAccent"
+            android:text="Welcome to GIT EYE"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:background="@color/colorAccent"
+            android:text="Press the PLAY button to start"
+            android:textAlignment="center"
+            android:textColor="@color/white"
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+    </RelativeLayout>
+
+
+</FrameLayout>
