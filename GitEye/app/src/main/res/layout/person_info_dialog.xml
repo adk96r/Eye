@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<android.support.v7.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_gravity="center"
+    android:clipChildren="true"
+    android:clipToPadding="true"
+    app:cardBackgroundColor="@color/white"
+    app:cardCornerRadius="4dp">
+
+    <LinearLayout xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:background="@color/midColor"
+            android:minHeight="240dp"
+            android:src="@drawable/ic_play_arrow_black_24dp"
+            tools:ignore="ContentDescription" />
+
+        <android.support.design.widget.CoordinatorLayout
+            android:layout_width="240dp"
+            android:layout_height="wrap_content"
+            android:minHeight="240dp"
+            android:orientation="vertical"
+            android:theme="@style/FullscreenActionBarStyle">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/person_dialog_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp"
+                    android:background="@color/colorPrimary"
+                    android:elevation="6dp"
+                    android:gravity="start|bottom"
+                    android:padding="16dp"
+                    android:text="Aditya . K"
+                    android:textColor="@color/white"
+                    android:textSize="30sp"
+                    android:textStyle="normal" />
+
+                <LinearLayout
+                    android:layout_width="200dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="start|center"
+                    android:gravity="bottom"
+                    android:orientation="vertical"
+                    android:paddingLeft="16dp"
+                    android:paddingTop="16dp">
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Roll no  : "
+                            android:textColor="@color/textColorSecondary"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/person_dialog_rollno"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="1210314802"
+                            android:textColor="@color/textColorPrimary" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Sem      : "
+                            android:textColor="@color/textColorSecondary"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/person_dialog_sem"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="7"
+                            android:textColor="@color/textColorPrimary" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp">
+
+                        <TextView
+
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Branch : "
+                            android:textColor="@color/textColorSecondary"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/person_dialog_branch"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="CSE"
+                            android:textColor="@color/textColorPrimary" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:padding="4dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Attendance     : "
+                            android:textColor="@color/textColorSecondary"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/person_dialog_att"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="85.0"
+                            android:textColor="@color/textColorPrimary" />
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/person_dialog_dismiss_fab"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="8dp"
+                android:src="@mipmap/ic_arrow"
+                android:tint="@color/white"
+                app:backgroundTint="@color/colorAccent"
+                app:fabSize="mini"
+                app:layout_anchor="@+id/person_dialog_name"
+                app:layout_anchorGravity="bottom|end" />
+        </android.support.design.widget.CoordinatorLayout>
+
+
+    </LinearLayout>
+
+</android.support.v7.widget.CardView>
+
+
