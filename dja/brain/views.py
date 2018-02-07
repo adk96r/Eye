@@ -16,6 +16,7 @@ import face_recognition
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def getPersonInfo(request):
+	print("Here there is no error!")
 	try:
 		data = request.POST
 		b64Image = data["ImageData"]
@@ -84,7 +85,7 @@ def getKnownEncodings():
 
 	encodings = list()
 	try:
-		with open('Encodings.csv', 'r') as c:
+		with open('C:\\Users\\Pradeep Chandra\\Downloads\\encodings_128.csv', 'r') as c:
 			reader = csv.reader(c, delimiter=';', dialect='excel')
 			for r in reader:
 				encodings.append([float(r[x]) for x in range(1, len(r))])
@@ -98,13 +99,14 @@ def getKnownEncodings():
 # Take a b64 file and convert it and save it as <imageFileName>.jpg.
 def convertB64toImageAndSave(b64_string, image_file_name):
 	try:
+
 		#imgdata takes the decoded base64 string into imgdata
 		#image_file_name is the file name where the image is stored
 		#imgdata is returned
-        try:
-            imgdata = base64.b64decode(b64_string)
-        except:
-            print("Couldnt decode")
+		try:
+			imgdata = base64.b64decode(b64_string)
+		except:
+			print("Couldnt decode")
 
 		print ("Decoded the unknown image.")
 
